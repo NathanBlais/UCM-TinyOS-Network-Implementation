@@ -1,6 +1,5 @@
 # Introduction
-This skeleton code is the basis for the CSE160 network project. Additional documentation
-on what is expected will be provided as the school year continues.
+This code is the based on https://github.com/UCMAndesLab/CSE160-Project-Skeleton-Code. 
 
 # General Information
 ## Data Structures
