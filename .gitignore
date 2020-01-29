@@ -9,4 +9,4 @@ simbuild/*
 build/*
 *.xml
 TOSSIM.py
-_TOSSIMmodule.soTOSSIM.pyc
+_TOSSIMmodule.so
