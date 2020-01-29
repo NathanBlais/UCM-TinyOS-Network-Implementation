@@ -1,0 +1,12 @@
+#MacOS stuff
+.DS_store
+.DS_Store
+.DS_STORE
+
+#made by make file
+*.pyc
+simbuild/*
+build/*
+*.xml
+TOSSIM.py
+_TOSSIMmodule.soTOSSIM.pyc

@@ -186,12 +186,12 @@ flagPcketFlooding   = True;
 
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
-if(flagNeiborDiscovery) 
+#if(flagNeiborDiscovery) 
 
 
 
 #####***PACKET  FLOODING   TEST***#####
-if(flagPcketFlooding)
+#if(flagPcketFlooding)
 
 
 
