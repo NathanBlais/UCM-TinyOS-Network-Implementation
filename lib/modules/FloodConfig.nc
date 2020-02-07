@@ -6,8 +6,9 @@
 *
 **/
 
+#include "../../includes/am_types.h"
 
-configuration{
+configuration FloodConfig{
 	//Provides the SimpleSend interface in order to flood
 	provides interface SimpleSend as Flooder;
 }

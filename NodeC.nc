@@ -30,4 +30,10 @@ implementation {
 
     components CommandHandlerConfig;
     Node.CommandHandler -> CommandHandlerConfig;
+
+    components FloodConfig;
+    Node.Flooder -> FloodConfig.Flooder;
+
+
+
 }
