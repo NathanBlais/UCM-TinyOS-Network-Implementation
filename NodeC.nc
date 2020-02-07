@@ -25,15 +25,12 @@ implementation {
     components ActiveMessageC;
     Node.AMControl -> ActiveMessageC;
 
-    components new SimpleSendConfig(AM_PACK);
-    Node.Sender -> SimpleSendConfig;
+    components new SimpleSendC(AM_PACK);
+    Node.Sender -> SimpleSendC;
 
-    components CommandHandlerConfig;
-    Node.CommandHandler -> CommandHandlerConfig;
+    components CommandHandlerC;
+    Node.CommandHandler -> CommandHandlerC;
 
-    components FloodConfig;
-    Node.Flooder -> FloodConfig.Flooder;
-
-
-
+    components FlooderC;
+    Node.Flooder -> FlooderC.Flooder;
 }
