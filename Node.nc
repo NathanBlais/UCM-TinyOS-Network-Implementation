@@ -20,9 +20,7 @@ module Node{
    uses interface Receive;
 
    uses interface SimpleSend as Sender;
-
-   uses interface SimpleSend as Flooder;
-   //uses interface Flood as Flooder;
+   uses interface Flooder;
 
    uses interface CommandHandler;
 }

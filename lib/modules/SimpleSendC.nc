@@ -58,6 +58,14 @@ implementation{
          input = call Pool.get();
          input->packet = msg;
          input->dest = dest;
+         	
+         //If we are the source on the packet, this must be a new packet
+         if(msg.src == TOS_NODE_ID) {
+         	//Add a new sequence number to this packet
+         	input->packet.seq = sequenceNum++;
+         	msg.seq = input->packet.seq;
+   		}
+//        	logPack(&msg);
 
          // Now that we have a value from the pool we can put it into our queue.
          // This is a FIFO queue.
@@ -88,7 +96,6 @@ implementation{
             call Queue.dequeue();
             call Pool.put(info);
          }
-
 
       }
 
