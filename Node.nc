@@ -27,9 +27,10 @@ module Node{
 
 implementation{
    pack sendPackage;
+   int newSeq = 1;
 
    // Prototypes
-   void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t Protocol, uint16_t seq, uint8_t *payload, uint8_t length);
+   void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t *payload, uint8_t length);
 
    event void Boot.booted(){
       call AMControl.start();
@@ -49,7 +50,7 @@ implementation{
    event void AMControl.stopDone(error_t err){}
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
-      dbg(GENERAL_CHANNEL, "Packet Received\n");
+      dbg(GENERAL_CHANNEL, "Packet Received in Node\n");
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
          dbg(GENERAL_CHANNEL, "Package Payload: %s\n", myMsg->payload);
@@ -62,9 +63,9 @@ implementation{
 
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
       dbg(GENERAL_CHANNEL, "PING EVENT \n");
-      makePack(&sendPackage, TOS_NODE_ID, destination, 0, 0, 0, payload, PACKET_MAX_PAYLOAD_SIZE);
-      call Sender.send(sendPackage, destination);
-      //call Flooder.send(sendPackage, destination);
+      makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, 0, PROTOCOL_PING, payload, PACKET_MAX_PAYLOAD_SIZE);
+      //call Sender.send(sendPackage, destination);
+      call Flooder.send(sendPackage, destination);
    }
 
    event void CommandHandler.printNeighbors(){}
@@ -83,7 +84,7 @@ implementation{
 
    event void CommandHandler.setAppClient(){}
 
-   void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t protocol, uint16_t seq, uint8_t* payload, uint8_t length){
+   void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t* payload, uint8_t length){
       Package->src = src;
       Package->dest = dest;
       Package->TTL = TTL;

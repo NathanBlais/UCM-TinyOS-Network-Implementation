@@ -15,4 +15,8 @@ implementation {
 	//Wire the Receive interface used by SimpleFloodP to the one provided by AMReceiverC()
 	components new AMReceiverC(AM_FLOODING) as Receiver;
 	FlooderP.Receiver -> Receiver;
+
+	//Wire the List interface used by SimpleFloodP to the one provided by ListC()
+    components new ListC(pack, 20) as KnownPacketsList;
+    FlooderP.KnownPacketsList -> KnownPacketsList;
 }
