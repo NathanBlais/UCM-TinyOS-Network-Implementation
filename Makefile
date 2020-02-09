@@ -1,4 +1,4 @@
-COMPONENT=NodeC
+  COMPONENT=NodeC
 
 
 INCLUDE=-IdataStructures

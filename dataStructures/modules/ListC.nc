@@ -18,27 +18,30 @@ implementation{
 	t container[n];
 	uint16_t size = 0;
 
-	command void List.pushback(t input){
+	command bool List.pushback(t input){
 		// Check to see if we have room for the input.
 		if(size < MAX_SIZE){
 			// Put it in.
 			container[size] = input;
 			size++;
-		}
+			return TRUE;
+		 }
+		return FALSE;
 	}
 
-	command void List.pushfront(t input){
+	command bool List.pushfront(t input){
 		// Check to see if we have room for the input.
 		if(size < MAX_SIZE){
 			int32_t i;
 			// Shift everything to the right.
 			for(i = size-1; i>=0; i--){
 				container[i+1] = container[i];
-			}
-
+			 }
 			container[0] = input;
 			size++;
-		}
+			return TRUE;
+		 }
+		return FALSE;
 	}
 
 	command t List.popback(){
@@ -63,7 +66,6 @@ implementation{
 			}
 			size--;
 		}
-
 		return returnVal;
 	}
 

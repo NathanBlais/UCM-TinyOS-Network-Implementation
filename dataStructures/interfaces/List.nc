@@ -14,8 +14,8 @@ interface List<t>{
     *
     * @param input - data to be inserted
     */
-   command void pushback(t input);
-	command void pushfront(t input);
+   command bool pushback(t input);
+	command bool pushfront(t input);
 	command t popback();
 	command t popfront();
 	command t front();

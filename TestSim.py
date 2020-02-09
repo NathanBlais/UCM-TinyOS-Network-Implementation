@@ -157,7 +157,7 @@ def main():
     s.addChannel(s.COMMAND_CHANNEL);
     s.addChannel(s.GENERAL_CHANNEL);
     #Project 1
-    s.addChannel(s.FLOODING_CHANNEL);
+    #s.addChannel(s.FLOODING_CHANNEL);
     s.addChannel(s.NEIGHBOR_CHANNEL);
     #Project 2
     s.addChannel(s.ROUTING_CHANNEL);
@@ -173,8 +173,8 @@ def main():
     s.runTime(20);
     s.ping(1, 2, "Hello, World");
     s.runTime(10);
-    s.ping(1, 3, "Hi!");
-    s.runTime(20);
+    s.ping(1, 6, "Hi!");
+    s.runTime(50);
 
 
 #Flags to choose which test to run#
