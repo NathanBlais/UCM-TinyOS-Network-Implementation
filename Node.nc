@@ -23,6 +23,8 @@ module Node{
    uses interface Flooder;
 
    uses interface CommandHandler;
+   //uses interface Boot;
+   uses interface NeighborDiscovery;
 }
 
 implementation{
@@ -36,8 +38,11 @@ implementation{
    event void Boot.booted(){
       call AMControl.start();
 
-      dbg(GENERAL_CHANNEL, "Booted\n");
+      dbg(GENERAL_CHANNEL, "Booted before debugging \n");
+      //  call periodicTimer.startPeriodic(100);
    }
+
+
 
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
@@ -46,6 +51,11 @@ implementation{
          //Retry until successful
          call AMControl.start();
       }
+      
+      call NeighborDiscovery.run();
+     
+
+     
    }
 
    event void AMControl.stopDone(error_t err){}
@@ -70,6 +80,8 @@ implementation{
       call Flooder.send(sendPackage, destination);
    }
 
+
+   
    event void CommandHandler.printNeighbors(){}
 
    event void CommandHandler.printRouteTable(){}
