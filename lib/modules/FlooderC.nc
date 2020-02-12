@@ -16,6 +16,9 @@ implementation {
 	components new AMReceiverC(AM_FLOODING) as Receiver;
 	FlooderP.Receiver -> Receiver;
 
+	FlooderP.Packet -> Receiver;
+    FlooderP.AMPacket -> Receiver;
+
 	//Wire the List interface used by SimpleFloodP to the one provided by ListC()
     components new ListC(pack, 20) as KnownPacketsList;
     FlooderP.KnownPacketsList -> KnownPacketsList;

@@ -13,6 +13,9 @@ module FlooderP
 	uses interface SimpleSend as Sender;
 	//Uses the Receive interface to determine if received packet is meant for me.
 	uses interface Receive as Receiver;
+
+	uses interface Packet;
+    uses interface AMPacket;
 	//Uses the Queue interface to determine if packet recieved has been seen before
 	uses interface List<pack> as KnownPacketsList;
 }
@@ -46,6 +49,10 @@ implementation
 		if (len == sizeof(pack))
 		{
 			pack *contents = (pack *)payload;
+
+			am_addr_t e = call AMPacket.source(msg);
+			dbg(FLOODING_CHANNEL, "call AMPacket.source(msg): %d\n", e);
+
 
 			//If I am the original sender or have seen the packet before, drop it
 			if ((contents->src == TOS_NODE_ID) || isInList(*contents))
@@ -87,6 +94,7 @@ implementation
 				if (PROTOCOL_PING == contents->protocol)
 				{
 					dbg(FLOODING_CHANNEL, "Flooding Ping\n");
+
 					call Sender.send(*contents, AM_BROADCAST_ADDR);
 				}
 				else if (PROTOCOL_PINGREPLY == contents->protocol)
@@ -97,7 +105,17 @@ implementation
 				else
 				{
 					dbg(FLOODING_CHANNEL, "temp output statment\n");
+					return msg;
 				}
+				//if(neighbors.empty() == FALSE){
+					//loop to send if neighbors list is populated
+					//for(i=0; i < neighbors.size(); i++){
+					//}
+				//}
+				//else{ //neighbors list is empty
+				call Sender.send(*contents, AM_BROADCAST_ADDR);
+				//}
+
 			}
 			return msg;
 		}
