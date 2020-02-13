@@ -94,6 +94,11 @@ implementation{
 		return container[position];
 	}
 	
+	command t* List.getPointer(){
+		return container;
+	}
+
+
 	command void List.remove(uint16_t position) {
 		uint8_t i;
 		if(size > 0) {

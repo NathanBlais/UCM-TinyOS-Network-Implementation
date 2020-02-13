@@ -1,3 +1,4 @@
+//Author:Nathan Blais
 configuration NeighborDiscoveryC{
 	//Provides the SimpleSend interface in order to neighborDiscover
 	provides interface NeighborDiscovery;
@@ -18,7 +19,6 @@ implementation {
 	components new AMReceiverC(AM_NEIGHBOR) as Receiver;
 	NeighborDiscoveryP.Receiver -> Receiver;
 
-	NeighborDiscoveryP.Packet -> Receiver;
     NeighborDiscoveryP.AMPacket -> Receiver;
 
 	//Wire the List interface used by SimpleNeighborP to the one provided by ListC()

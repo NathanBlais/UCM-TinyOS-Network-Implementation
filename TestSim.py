@@ -158,8 +158,8 @@ def main():
     s.addChannel(s.COMMAND_CHANNEL);
     s.addChannel(s.GENERAL_CHANNEL);
     #Project 1
-    s.addChannel(s.FLOODING_CHANNEL);
-    #s.addChannel(s.NEIGHBOR_CHANNEL);
+    #s.addChannel(s.FLOODING_CHANNEL);
+    #s.addChannel(s.NEIGHBOR_CHANNEL); 
     #Project 2
     s.addChannel(s.ROUTING_CHANNEL);
     #Project 3
@@ -169,32 +169,29 @@ def main():
     #Project 4
     s.addChannel(s.APPLICATION_CHANNEL);
 
-    #s.runTime(50);
-    #s.neighborDMP(2);
-    #s.runTime(10);
-
-    s.runTime(20);
-    s.ping(1, 2, "Hello, World");
-    s.runTime(10);
-    s.ping(1, 6, "Hi!");
-    s.runTime(50);
-
 
 #Flags to choose which test to run#
 
-flagNeiborDiscovery = True;
-flagPcketFlooding   = True;
-
-
-
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
-#if(flagNeiborDiscovery) 
+    s.runTime(50);
+    s.neighborDMP(1);
+    s.runTime(5);
+    s.neighborDMP(2);
+    s.runTime(5);
+    s.neighborDMP(3);
+    s.runTime(5);
+    s.neighborDMP(4);
+    s.runTime(10);
 
 
 
 #####***PACKET  FLOODING   TEST***#####
-#if(flagPcketFlooding)
+    # s.runTime(20);
+    # s.ping(1, 2, "Hello, World");
+    # s.runTime(10);
+    # s.ping(1, 6, "Hi!");
+    # s.runTime(50);
 
 
 

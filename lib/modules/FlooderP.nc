@@ -1,3 +1,4 @@
+//Author:Nathan Blais
 #include <Timer.h>
 #include "../../includes/command.h"
 #include "../../includes/packet.h"
@@ -13,8 +14,6 @@ module FlooderP
 	uses interface SimpleSend as Sender;
 	//Uses the Receive interface to determine if received packet is meant for me.
 	uses interface Receive as Receiver;
-
-	uses interface Packet;
     uses interface AMPacket;
 	//Uses the Queue interface to determine if packet recieved has been seen before
 	uses interface List<pack> as KnownPacketsList;
