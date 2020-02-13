@@ -18,11 +18,15 @@ module FlooderP
     uses interface AMPacket;
 	//Uses the Queue interface to determine if packet recieved has been seen before
 	uses interface List<pack> as KnownPacketsList;
+
+	uses interface NeighborDiscovery;
 }
 
 implementation
 {
 	pack sendPackage;
+	uint8_t * neighbors; //Maximum of 20 neighbors?
+
 
 	// Prototypes
 	void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t * payload, uint8_t length);
@@ -49,9 +53,6 @@ implementation
 		if (len == sizeof(pack))
 		{
 			pack *contents = (pack *)payload;
-
-			am_addr_t e = call AMPacket.source(msg);
-			dbg(FLOODING_CHANNEL, "call AMPacket.source(msg): %d\n", e);
 
 
 			//If I am the original sender or have seen the packet before, drop it
@@ -93,29 +94,49 @@ implementation
 				contents-> TTL = (contents->TTL) - 1; //Reduce TTL
 				if (PROTOCOL_PING == contents->protocol)
 				{
+					am_addr_t e = call AMPacket.source(msg);
 					dbg(FLOODING_CHANNEL, "Flooding Ping\n");
 
-					call Sender.send(*contents, AM_BROADCAST_ADDR);
+					neighbors = call NeighborDiscovery.getNeighbors();
+
+					dbg(FLOODING_CHANNEL, "neighbors[0]: %d\n", neighbors[1]);
+					if(neighbors[0] != 0){
+						uint8_t i;
+						//loop to send if neighbors list is populated
+						for(i=0; i < 19 && neighbors[i] != 0; i++){
+							if (neighbors[i] != (uint8_t) e)
+								call Sender.send(*contents, neighbors[i]);
+						}
+					}
+					else{ //neighbors list is empty
+						call Sender.send(*contents, AM_BROADCAST_ADDR);
+					}
 				}
 				else if (PROTOCOL_PINGREPLY == contents->protocol)
 				{
+					am_addr_t e = call AMPacket.source(msg);
+					dbg(FLOODING_CHANNEL,"am_addr_t e %d\n", e);
 					dbg(FLOODING_CHANNEL, "Flooding Ping Reply\n");
-					call Sender.send(*contents, AM_BROADCAST_ADDR);
+					neighbors = call NeighborDiscovery.getNeighbors();
+
+					dbg(FLOODING_CHANNEL, "neighbors[0]: %d\n", neighbors[0]);
+					if(neighbors[0] != 0){
+						uint8_t i;
+						//loop to send if neighbors list is populated
+						for(i=0; i < 19 && neighbors[i] != 0; i++){
+							if (neighbors[i] != (uint8_t) e)
+								call Sender.send(*contents, neighbors[i]);
+						}
+					}
+					else{ //neighbors list is empty
+						call Sender.send(*contents, AM_BROADCAST_ADDR);
+					}
 				}
 				else
 				{
 					dbg(FLOODING_CHANNEL, "temp output statment\n");
 					return msg;
 				}
-				//if(neighbors.empty() == FALSE){
-					//loop to send if neighbors list is populated
-					//for(i=0; i < neighbors.size(); i++){
-					//}
-				//}
-				//else{ //neighbors list is empty
-				call Sender.send(*contents, AM_BROADCAST_ADDR);
-				//}
-
 			}
 			return msg;
 		}

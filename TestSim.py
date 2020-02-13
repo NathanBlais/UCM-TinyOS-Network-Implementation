@@ -150,16 +150,16 @@ class TestSim:
 def main():
     s = TestSim();
     s.runTime(10);
-    s.loadTopo("example.topo");
-    #s.loadTopo("long_line.topo");
+    #s.loadTopo("example.topo");
+    s.loadTopo("long_line.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     #General
     s.addChannel(s.COMMAND_CHANNEL);
     s.addChannel(s.GENERAL_CHANNEL);
     #Project 1
-    #s.addChannel(s.FLOODING_CHANNEL);
-    s.addChannel(s.NEIGHBOR_CHANNEL);
+    s.addChannel(s.FLOODING_CHANNEL);
+    #s.addChannel(s.NEIGHBOR_CHANNEL);
     #Project 2
     s.addChannel(s.ROUTING_CHANNEL);
     #Project 3
@@ -169,7 +169,9 @@ def main():
     #Project 4
     s.addChannel(s.APPLICATION_CHANNEL);
 
-    
+    #s.runTime(50);
+    #s.neighborDMP(2);
+    #s.runTime(10);
 
     s.runTime(20);
     s.ping(1, 2, "Hello, World");
