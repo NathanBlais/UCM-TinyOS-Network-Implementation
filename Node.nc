@@ -29,8 +29,8 @@ module Node{
 
 implementation{
    pack sendPackage;
-   uint8_t newSeq = 1;
    am_addr_t nodes[10];
+   uint16_t SEQ_NUM=1;
 
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t *payload, uint8_t length);
@@ -39,7 +39,6 @@ implementation{
       call AMControl.start();
 
       dbg(GENERAL_CHANNEL, "Booted before debugging \n");
-      //  call periodicTimer.startPeriodic(100);
    }
 
 
@@ -51,11 +50,7 @@ implementation{
          //Retry until successful
          call AMControl.start();
       }
-      
       call NeighborDiscovery.run();
-     
-
-     
    }
 
    event void AMControl.stopDone(error_t err){}
@@ -74,15 +69,15 @@ implementation{
 
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
       dbg(GENERAL_CHANNEL, "PING EVENT \n");
-      makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, newSeq, PROTOCOL_PING, payload, PACKET_MAX_PAYLOAD_SIZE);
-      newSeq++;
+      makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, SEQ_NUM, PROTOCOL_PING, payload, PACKET_MAX_PAYLOAD_SIZE);
+      SEQ_NUM++;
       //call Sender.send(sendPackage, destination);
       call Flooder.send(sendPackage, destination);
    }
 
 
    
-   event void CommandHandler.printNeighbors(){}
+   event void CommandHandler.printNeighbors(){call NeighborDiscovery.print();}
 
    event void CommandHandler.printRouteTable(){}
 

@@ -35,7 +35,7 @@ implementation {
     Node.Flooder -> FlooderC.Flooder;
 
     components NeighborDiscoveryC;
-    Node.NeighborDiscovery -> NeighborDiscoveryC.NeighborDiscovery;
+    Node.NeighborDiscovery -> NeighborDiscoveryC;
 
     //components TimerMilliC() as myTimerC; //create a new timer with alias "myTimerC"
     

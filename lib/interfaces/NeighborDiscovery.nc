@@ -1,5 +1,5 @@
 interface NeighborDiscovery{
-	command error_t run();
-	//command error_t periodicTimer.fired()
-	
+	command void run();
+	command void print();
+	command uint8_t* getNeighbors();
 }
