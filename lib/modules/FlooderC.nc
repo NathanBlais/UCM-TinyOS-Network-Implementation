@@ -1,12 +1,11 @@
 //Author:Nathan Blais
 
 configuration FlooderC{
-	//Provides the SimpleSend interface in order to flood
 	provides interface Flooder;
 }
 
 implementation {
-	//Export the implemention of SimpleSend.send() to FlooderP
+	//Export the implemention
 	components FlooderP;	
 	Flooder = FlooderP.Flooder;
 	

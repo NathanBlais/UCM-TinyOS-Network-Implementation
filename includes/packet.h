@@ -12,7 +12,9 @@
 enum{
 	PACKET_HEADER_LENGTH = 8,
 	PACKET_MAX_PAYLOAD_SIZE = 28 - PACKET_HEADER_LENGTH,
-	MAX_TTL = 15
+	MAX_TTL = 15,
+ 	MAX_ROUTES = 255, /* maximum size of routing table */
+	MAX_TTLroute = 128 /* time (in seconds) until route expires */
 };
 
 

@@ -45,7 +45,7 @@ implementation
 		return FAIL;
 	}
 
-	//Event signaled when a node recieves a packet
+	//Event signaled when a Flooder recieves a packet
 	event message_t *Receiver.receive(message_t * msg, void *payload, uint8_t len)
 	{
 		dbg(FLOODING_CHANNEL, "Packet Received in Flooder\n");

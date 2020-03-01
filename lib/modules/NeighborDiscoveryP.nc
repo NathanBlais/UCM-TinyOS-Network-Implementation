@@ -9,14 +9,14 @@
 module NeighborDiscoveryP
 {
 
-    //Provides the SimpleSend interface in order to neighbor discover packets
+    //Provides the interface
     provides interface NeighborDiscovery;
-    //Uses SimpleSend interface to forward recieved packet as broadcast
+    //Uses SimpleSend interface to forward recieved packet from broadcast
     uses interface SimpleSend as Sender;
-    //Uses the Receive interface to determine if received packet is meant for me.
+    //Uses the Receive interface to determine if received packet is meant for itself.
     uses interface Receive as Receiver;
     uses interface AMPacket;
-    //Uses the Queue interface to determine if packet recieved has been seen before
+    //Uses the List interface to store a list of Neighbors
     uses interface List<neighbor> as Neighborhood;
     uses interface Timer<TMilli> as periodicTimer;
 }
@@ -208,7 +208,7 @@ implementation
             neighbors[i] = 0;
         }
 
-        //Then populate based on NeighborList
+        //Then populate based on Neighborhood
         for (i = 0; i < size; i++)
         {
             node = call Neighborhood.get(i);
