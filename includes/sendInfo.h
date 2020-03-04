@@ -18,6 +18,7 @@ typedef struct sendInfo{
 typedef struct neighbor {
 		uint8_t id;
 		bool flag;
+        //maybe add other values here
 }neighbor;
 
 typedef struct route

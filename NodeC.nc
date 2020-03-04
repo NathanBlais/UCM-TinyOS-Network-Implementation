@@ -37,6 +37,9 @@ implementation {
     components NeighborDiscoveryC;
     Node.NeighborDiscovery -> NeighborDiscoveryC;
 
+    components  DistanceVectorRoutingC;
+    Node.DistanceVectorRouting ->  DistanceVectorRoutingC;
+
     //components TimerMilliC() as myTimerC; //create a new timer with alias "myTimerC"
     
 }

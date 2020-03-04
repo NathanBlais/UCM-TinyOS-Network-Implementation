@@ -25,6 +25,7 @@ module Node{
    uses interface CommandHandler;
    //uses interface Boot;
    uses interface NeighborDiscovery;
+   uses interface DistanceVectorRouting;
 }
 
 implementation{
@@ -51,6 +52,7 @@ implementation{
          call AMControl.start();
       }
       call NeighborDiscovery.run();
+      call DistanceVectorRouting.run(); //temporarily here should be moved once we fix timmer for neighbor discovry
    }
 
    event void AMControl.stopDone(error_t err){}

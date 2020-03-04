@@ -21,11 +21,14 @@ implementation {
 
 	//Wire the List interface used by DistanceVectorRoutingP to the one provided by ListC()
     components new ListC(pack, 20) as PacketsList;
-    DistanceVectorRoutingP.KnownPacketsList -> KnownPacketsList;
+    DistanceVectorRoutingP.PacketsList -> PacketsList;
 
 	components NeighborDiscoveryC;
     DistanceVectorRoutingP.NeighborDiscovery -> NeighborDiscoveryC;
 
 	components new ListC(route, MAX_ROUTES) as Routes;
     DistanceVectorRoutingP.Routes -> Routes;
+
+	components new TimerMilliC() as periodicTimer; //create a new timer with alias "myTimerC"
+	DistanceVectorRoutingP.periodicTimer -> periodicTimer;
 }
