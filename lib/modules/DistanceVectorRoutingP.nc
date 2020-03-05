@@ -31,6 +31,7 @@ module DistanceVectorRoutingP
 
 implementation
 {
+    uint16_t SEQ_NUM = 1;
 	pack sendPackage;
     uint8_t * neighbors; //Maximum of 20 neighbors?
 
@@ -40,18 +41,20 @@ implementation
 
     void mergeRoute(route * newRoute);
 
-    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t * payload, uint8_t length);
+    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, route * payload, uint8_t length);
 
 
 
     command void DistanceVectorRouting.run()
     {
-        call periodicTimer.startPeriodic(1000000); //add random #
+        call periodicTimer.startPeriodic(100000); //add random #
     }
 
     event void periodicTimer.fired()
     {
-        dbg(ROUTING_CHANNEL, "PeriodicTimer fired from Routing");
+        route * TEMP;
+        route tempRoute;
+        dbg(ROUTING_CHANNEL, "PeriodicTimer fired from Routing\n");
         // update Router list form neighbor list
         UpdateNeighborRoutingTable();
 
@@ -62,8 +65,16 @@ implementation
 
         //optional - call a function to organize the list
 
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_DV, memcpy(Routes), PACKET_MAX_PAYLOAD_SIZE);
-        //call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_DV, call Routes.getPointer(), PACKET_MAX_PAYLOAD_SIZE);
+        // dbg(ROUTING_CHANNEL, "Before putting call route in temp \n");
+        // TEMP = call Routes.getPointer();
+        // dbg(ROUTING_CHANNEL, "After putting call route in temp \n");
+        // tempRoute = TEMP[0];
+        // dbg(ROUTING_CHANNEL, "The node destination of our tempRoute: %s\n", tempRoute.Destination);
+        //                              dbg(ROUTING_CHANNEL, "Package Payload: %s\n", TEMP[0]);
+        //          dbg(ROUTING_CHANNEL, "Package Payload: %s\n", sendPackage.payload);
+
+        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
     }
 
 
@@ -92,7 +103,9 @@ implementation
 
 
 
-         dbg(ROUTING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+
+         dbg(ROUTING_CHANNEL, "Package Payload: %d\n", myMsg->payload[0].Destination);
+
          return msg;
       }
       dbg(ROUTING_CHANNEL, "Unknown Packet Type %d\n", len);
@@ -176,7 +189,7 @@ from a neighboring node.
         /* reset TTL */
     }
 
-    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t * payload, uint8_t length)
+    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, route * payload, uint8_t length)
     {
         Package->src = src;
         Package->dest = dest;
