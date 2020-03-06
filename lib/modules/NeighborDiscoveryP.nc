@@ -37,7 +37,7 @@ implementation
     void updateNeighbors();
     void printNeighborhood();
 
-    uint8_t neighbors[19]; //Maximum of 20 neighbors?
+//    uint8_t neighbors[19]; //Maximum of 20 neighbors?
 
     command void NeighborDiscovery.run()
     {
@@ -201,7 +201,10 @@ implementation
     {
         //First zero out neighbors array
         uint8_t i, size = call Neighborhood.size();
+
+
         neighbor node;
+        uint8_t neighbors[size]; //Maximum of 20 neighbors?
 
         for (i = 0; i < 19; i++)
         {
@@ -214,7 +217,14 @@ implementation
             node = call Neighborhood.get(i);
             neighbors[i] = node.id;
         }
+        dbg(GENERAL_CHANNEL, "Nsizeof(neighbors) = %d\n", sizeof(neighbors));
+
         return neighbors;
     }
+
+    command uint16_t NeighborDiscovery.getNeighborhoodSize(){
+        return call Neighborhood.size();
+    }
+
 
 } // for implementation

@@ -81,7 +81,7 @@ implementation{
    
    event void CommandHandler.printNeighbors(){call NeighborDiscovery.print();}
 
-   event void CommandHandler.printRouteTable(){}
+   event void CommandHandler.printRouteTable(){call DistanceVectorRouting.print();}
 
    event void CommandHandler.printLinkState(){}
 

@@ -174,22 +174,25 @@ def main():
 
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
-    s.runTime(50);
+    s.runTime(20);
     #s.neighborDMP(1);
-    s.runTime(5);
+    #s.runTime(5);
     #s.neighborDMP(2);
-    s.runTime(5);
+    #s.runTime(5);
     #s.neighborDMP(3);
     #s.runTime(5);
-    #s.neighborDMP(4);
-    s.runTime(10);
-
+    s.routeDMP(2);
+    s.runTime(20);
+    s.routeDMP(2);
+    s.runTime(20);
+    s.routeDMP(2);
+    s.runTime(1);
 
 
 #####***PACKET  FLOODING   TEST***#####
     # s.runTime(20);
-    # s.ping(1, 2, "Hello, World");
-    # s.runTime(10);
+    #s.ping(1, 2, "Hello, World");
+    #s.runTime(10);
     # s.ping(1, 6, "Hi!");
     # s.runTime(50);
 

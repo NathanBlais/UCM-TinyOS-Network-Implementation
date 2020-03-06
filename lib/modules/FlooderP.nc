@@ -97,6 +97,8 @@ implementation
 					dbg(FLOODING_CHANNEL, "Flooding Ping\n");
 
 					neighbors = call NeighborDiscovery.getNeighbors();
+					dbg(GENERAL_CHANNEL, "\tFlooderNeighborDiscovery.getNeighbors() = %zu\n", sizeof(call NeighborDiscovery.getNeighbors())); //delete this
+
 
 					dbg(FLOODING_CHANNEL, "neighbors[0]: %d\n", neighbors[1]);
 					if(neighbors[0] != 0){
