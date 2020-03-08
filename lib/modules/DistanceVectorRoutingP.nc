@@ -28,6 +28,12 @@ module DistanceVectorRoutingP
     uses interface Random;
     uses interface RouteTable;
 
+    //interface PacketAcknowledgements <- i just found this
+    //interface RouteSelect;
+    //interface RouteControl as RouteSelectCntl;
+
+
+
 //QUESTION:Do we want to use these?
 
     //Uses the Queue interface to determine if packet recieved has been seen before
@@ -88,7 +94,8 @@ implementation
     //Starts timer to send route values to our neighbors
     command void DistanceVectorRouting.run()
     {
-        call InitalizationWait.startPeriodic(30000 + (call Random.rand16() %300)); //30 Seconds
+        call InitalizationWait.startOneShot(1000);
+        //call InitalizationWait.startPeriodic(30000 /*+ (call Random.rand16() %300)*/); //30 Seconds
         //call periodicTimer.startPeriodic(150000 /* 
       //  + (call Random.rand16() %300) */);
         //NOTE:we should tune the timming
@@ -115,7 +122,7 @@ implementation
         neighbor * neighborhood = call NeighborDiscovery.getNeighborsPointer();
         route * routes = call RouteTable.getPointer();
         route pak;
-        call advertiseTimer.stop(); //stop timer to give time for prossessing
+        //call advertiseTimer.stop(); //stop timer to give time for prossessing
 
 
         dbg(ROUTING_CHANNEL, "Routing advertiseTimer fired\n");
@@ -127,7 +134,7 @@ implementation
                         makePack(&sendPackage, TOS_NODE_ID,
                                                neighborhood[i].id,
                                                1,
-                                               SEQ_NUM,
+                                               1,//SEQ_NUM,
                                                PROTOCOL_DV,
                                                &pak, //NOTE:incompatabe type
                                                PACKET_MAX_PAYLOAD_SIZE);
@@ -139,7 +146,7 @@ implementation
                         makePack(&sendPackage, TOS_NODE_ID,
                                                neighborhood[i].id,
                                                1,
-                                               SEQ_NUM,
+                                               1,//SEQ_NUM,
                                                PROTOCOL_DV,
                                                &pak, //NOTE:incompatabe type
                                                PACKET_MAX_PAYLOAD_SIZE);
@@ -147,7 +154,8 @@ implementation
                 }
             }
         }
-        call advertiseTimer.startPeriodic(30000); //30 Seconds
+        call advertiseTimer.startOneShot(6000);
+        //call advertiseTimer.startPeriodic(10000); //30 Seconds
     }
 
     event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
@@ -174,8 +182,10 @@ implementation
             
                     //if (dest ∈/ known) and (newMetric < 16) then
             if(position == MAX_ROUTES/* && cost < MAX_COST*/){ //New Route
-                if (call RouteTable.size() >= MAX_ROUTES)
-                    return msg;
+                if (call RouteTable.size() >= MAX_ROUTES){
+                    dbg(GENERAL_CHANNEL, "Routing Table Full\n");
+
+                    return msg;}
                 (forNewRoute.Destination).id = (routes->Destination).id;
                 forNewRoute.Cost = cost; 
                 (forNewRoute.NextHop).id = myMsg->src; 
@@ -184,11 +194,11 @@ implementation
                 call RouteTable.pushback(forNewRoute);
                 //SET TO EXPIRE 
             }
-            else{
+            //else{
 
-                if((call RouteTable.get(position)).Cost < MAX_COST || (call RouteTable.get(position)).Cost > size)
+            //    if((call RouteTable.get(position)).Cost < MAX_COST || (call RouteTable.get(position)).Cost > cost)
 
-            }
+            //}
 
 
             //if ((routes->Destination).id != ((call RouteTable.get(i)).Destination).id)
@@ -214,7 +224,7 @@ implementation
             }
         } 
     }
-}
+}*/
 
         //NOTE: add more psudo code here!!!
             // What should we put here or in a seperate function?
@@ -270,7 +280,7 @@ implementation
             call RouteTable.pushback(neighborRoute);
 
         }
-        call advertiseTimer.startPeriodic(30000); //30 Seconds
+        call advertiseTimer.startPeriodic(10000); //30 Seconds
     }
  
 

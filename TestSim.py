@@ -161,7 +161,7 @@ def main():
     #s.addChannel(s.FLOODING_CHANNEL);
     #s.addChannel(s.NEIGHBOR_CHANNEL); 
     #Project 2
-    s.addChannel(s.ROUTING_CHANNEL);
+    #s.addChannel(s.ROUTING_CHANNEL);
     #Project 3
     s.addChannel(s.TRANSPORT_CHANNEL);
     #Possibly add seperate server and client channels
@@ -173,28 +173,70 @@ def main():
 #Flags to choose which test to run#
 
 
-#####***NEIGHBOR DISCOVERY TEST***##### 
-    s.runTime(20);
-    #s.neighborDMP(1);
-    #s.runTime(5);
-    #s.neighborDMP(2);
-    #s.runTime(5);
-    #s.neighborDMP(3);
-    #s.runTime(5);
-    s.routeDMP(6);
-    s.runTime(20);
-    s.routeDMP(6);
-    # s.runTime(20);
-    # s.routeDMP(6);
+#####***DVR TEST***##### 
+
     s.runTime(1);
+    s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
+    s.runTime(1);
+    s.routeDMP(1);
+    s.runTime(1);
+    s.routeDMP(2);
+    s.runTime(1);
+    s.routeDMP(3);
+    s.runTime(1);
+    s.routeDMP(4);
+    s.runTime(1);
+    s.routeDMP(5);
+    s.runTime(1);
+    s.routeDMP(6);
+    s.runTime(1);
+    s.routeDMP(7);
+    s.runTime(1);
+    s.routeDMP(8);
+    s.runTime(1);
+    s.routeDMP(9);
+    s.runTime(1);
+    s.routeDMP(10);
+    s.runTime(1);
+    s.routeDMP(11);
+    s.runTime(1);
+    s.routeDMP(12);
+    s.runTime(1);
+    s.routeDMP(13);
+    s.runTime(1);
+    s.routeDMP(14);
+    s.runTime(1);
+    s.routeDMP(15);
+    s.runTime(1);
+    s.routeDMP(16);
+    s.runTime(1);
+    s.routeDMP(17);
+    s.runTime(1);
+    s.routeDMP(18);
+    s.runTime(1);
+    s.routeDMP(19);
+    s.runTime(1);
+
+
+#####***NEIGHBOR DISCOVERY TEST***##### 
+    # s.runTime(50);
+    # s.neighborDMP(1);
+    # s.runTime(5);
+    # s.neighborDMP(2);
+    # s.runTime(5);
+    # s.neighborDMP(3);
+    # s.runTime(5);
+    # s.neighborDMP(4);
+    # s.runTime(10);
+
 
 
 #####***PACKET  FLOODING   TEST***#####
     # s.runTime(20);
     #s.ping(1, 2, "Hello, World");
     #s.runTime(10);
-    # s.ping(1, 6, "Hi!");
-    # s.runTime(50);
+    #s.ping(1, 6, "Hi!");
+    #s.runTime(50);
 
 
 
