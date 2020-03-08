@@ -201,8 +201,7 @@ implementation
     {
         //First zero out neighbors array
         uint8_t i, size = call Neighborhood.size();
-
-
+        
         neighbor node;
         uint8_t neighbors[size]; //Maximum of 20 neighbors?
 

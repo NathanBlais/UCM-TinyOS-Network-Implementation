@@ -31,4 +31,8 @@ implementation {
 
 	components new TimerMilliC() as periodicTimer; //create a new timer with alias "myTimerC"
 	DistanceVectorRoutingP.periodicTimer -> periodicTimer;
+
+	components RandomC as Random;
+	DistanceVectorRoutingP.Random -> Random;
+
 }

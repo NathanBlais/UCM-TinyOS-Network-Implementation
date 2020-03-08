@@ -25,7 +25,7 @@ typedef struct route
     {
         uint16_t Destination; /* address of destination */
         uint16_t NextHop;     /* address of next hop */
-        uint8_t Cost;             /* distance metric */ //temprarily for NumOfHops
+        uint16_t Cost;             /* distance metric */ //temprarily for NumOfHops
         //add other values to determin 
         uint16_t TTL;          /* time to live */
     } route;

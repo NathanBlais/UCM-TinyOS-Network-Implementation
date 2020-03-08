@@ -26,6 +26,8 @@ module DistanceVectorRoutingP
 
     uses interface Timer<TMilli> as periodicTimer;
 
+    uses interface Random;
+
     //NOTE: Wire a timmer
 }
 
@@ -33,6 +35,9 @@ implementation
 {
     uint16_t SEQ_NUM = 1;
 	pack sendPackage;
+    
+    //uint8_t * neighbors;
+
 
     route routeHolder;
 
@@ -54,10 +59,25 @@ implementation
     command void DistanceVectorRouting.run()
     {
         uint8_t i;
-        call periodicTimer.startPeriodic(100000); //add random #
+        uint8_t costHolder;
+        call periodicTimer.startPeriodic(100000 + (call Random.rand16() %300) ); //add random #
 
 
-        // for(i=0; i < call Routes.size(); i++){}
+         for(i=0; i < 20 /*MAX_ROUTES*/; i++){
+            if(i+1 != TOS_NODE_ID){
+                routeHolder.Destination = i+1;
+                routeHolder.Cost = MAX_ROUTES;
+                //routeHolder.NextHop = ?;
+                routeHolder.TTL = 0;
+                call Routes.pushback(routeHolder);}
+            else{
+                routeHolder.Destination = i+1;
+                routeHolder.Cost = 0;
+                //routeHolder.NextHop = TOS_NODE_ID;
+                routeHolder.TTL = 0;
+                call Routes.pushback(routeHolder);
+            }
+         }
 
     }
 
@@ -75,11 +95,11 @@ implementation
 
         //do Split Horizon with posion
 
-        // for(i=0; i < call Routes.size(); i++){
-        //     if((call Routes.get(i)).Destination = (call NeighborDiscovery.getNeighbors())[i] )
-        //     routeHolder
+        //  for(i=0; i < call Routes.size(); i++){
+        //      if((call Routes.get(i)).Destination = (call NeighborDiscovery.getNeighbors())[i] )
+        //      routeHolder
 
-        // }
+        //  }
 
 
 
@@ -88,10 +108,10 @@ implementation
 
         //optional - call a function to organize the list
 
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_DV, call Routes.getPointer(), PACKET_MAX_PAYLOAD_SIZE);
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_DV, call Routes.getPointer(), sizeof(route) * ;
  
         //                              dbg(ROUTING_CHANNEL, "Package Payload: %s\n", TEMP[0]);
-                  dbg(ROUTING_CHANNEL, "Package Payload: %s\n", sendPackage.payload);
+                  dbg(ROUTING_CHANNEL, "Package Payload: %d\n", sendPackage.payload);
 
         call Sender.send(sendPackage, AM_BROADCAST_ADDR);
     }
@@ -119,9 +139,9 @@ implementation
    event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
       dbg(ROUTING_CHANNEL, "Packet Received in VRouter\n");
       if(len==sizeof(pack)){
+                  uint8_t i;
         pack* myMsg=(pack*) payload;
         route* routes = (route*) myMsg->payload;
-        uint8_t i;
 
 
 
@@ -129,15 +149,23 @@ implementation
 
         //dbg(ROUTING_CHANNEL, "Size in RECIVER: %d\n", size);
 
-        dbg(GENERAL_CHANNEL, "RECIVER sizeof(myMsg->payload) = %d\n", sizeof(myMsg->payload));
+        //dbg(GENERAL_CHANNEL, "RECIVER sizeof(myMsg->payload) = %d\n", sizeof(myMsg->payload));
 
 
        // for(i=0;i<200 route[])(myMsg->payload)[0]))
        //     newRoute->NextHop = TOS_NODE_ID;
 
         for(i = 0; i < MAX_ROUTES && routes[i].Destination != 0; i++){
-            routes[i].NextHop = myMsg->src;
+            if(routes[i].NextHop = TOS_NODE_ID || routes[i].Destination == myMsg->src){
+                routes[i].NextHop = MAX_TTLroute;
             }
+            else{
+                routes[i].NextHop = myMsg->src;
+            }
+            dbg(GENERAL_CHANNEL, "RECIVER routes[i].Cost = %d\n", routes[i].Cost);
+        }
+
+        
 
          updateRoutingTable(routes, i);
 
@@ -202,8 +230,9 @@ from a neighboring node.
 */
     void
         mergeRoute(route * newRoute) {
-        int i;
-        for (i = 0; i < call Routes.size(); i++)
+        uint16_t i;
+        route * table = call Routes.getPointer();
+        for (i = 0; i < (call Routes.size()) + 1; i++)
         {
             if (newRoute->Destination == (call Routes.get(i)).Destination)
             {
@@ -215,40 +244,13 @@ from a neighboring node.
                 if (newRoute->Cost + 1 < (call Routes.get(i)).Cost)
                 {
                     /* found a better route: */    
-                    call Routes.remove(i);
-
-                    newRoute->TTL = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
-
-                    dbg(GENERAL_CHANNEL, "1newRoute->Cost = %d\n", newRoute->Cost);
-
-
-                 newRoute->Cost = newRoute->Cost + 1; /* account for hop to get to next node */ 
-                dbg(GENERAL_CHANNEL, "2newRoute->Cost = %d\n", newRoute->Cost);
-
-                 call Routes.pushback(*newRoute);
-                   // break;
-                   return;
+                    break;
                 }
-                else if (newRoute->NextHop == (call Routes.get(i)).NextHop)
-                {
-                    /* metric for current next-hop may have changed: */
-
-                                        call Routes.remove(i);
-
-                    newRoute->TTL = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
-
-                    dbg(GENERAL_CHANNEL, "1newRoute->Cost = %d\n", newRoute->Cost);
-
-
-                 newRoute->Cost = newRoute->Cost + 1; /* account for hop to get to next node */ 
-                dbg(GENERAL_CHANNEL, "2newRoute->Cost = %d\n", newRoute->Cost);
-
-                 call Routes.pushback(*newRoute);
-                   // break;
-                   return;
-
-                   // break;
-                }
+                // else if (newRoute->NextHop == (call Routes.get(i)).NextHop)
+                // {
+                //     /* metric for current next-hop may have changed: */
+                //     break;
+                // }
                 else
                 {
                     /* route is uninteresting---just ignore it */
@@ -263,15 +265,19 @@ from a neighboring node.
                 return; /* can't fit this route in table so give up */
         }
 
-        newRoute->TTL = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
+
+        //(call Routes.get(i)).Destination = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
+        table[i].NextHop = newRoute->NextHop; ///Do we want to update the TTL to MAX_TTL every time we get an update
 
         dbg(GENERAL_CHANNEL, "1newRoute->Cost = %d\n", newRoute->Cost);
+        dbg(GENERAL_CHANNEL, "2table[i].Cost = %d\n", table[i].Cost);
+        table[i].Cost = newRoute->Cost + 1; /* account for hop to get to next node */ 
+        dbg(GENERAL_CHANNEL, "2newRoute->Cost = %d\n", newRoute->Cost;
+        dbg(GENERAL_CHANNEL, "2table[i].Cost = %d\n", table[i].Cost);
+        table[i].TTL = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
 
 
-        newRoute->Cost = newRoute->Cost + 1; /* account for hop to get to next node */ 
-        dbg(GENERAL_CHANNEL, "2newRoute->Cost = %d\n", newRoute->Cost);
-
-        call Routes.pushback(*newRoute);
+        //call Routes.pushback(*newRoute);
 
         /* reset TTL */
     }

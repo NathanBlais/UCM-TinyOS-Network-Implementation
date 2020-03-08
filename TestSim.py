@@ -181,11 +181,11 @@ def main():
     #s.runTime(5);
     #s.neighborDMP(3);
     #s.runTime(5);
-    s.routeDMP(2);
+    s.routeDMP(6);
     s.runTime(20);
-    s.routeDMP(2);
-    s.runTime(20);
-    s.routeDMP(2);
+    s.routeDMP(6);
+    # s.runTime(20);
+    # s.routeDMP(6);
     s.runTime(1);
 
 

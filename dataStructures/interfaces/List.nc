@@ -26,5 +26,7 @@ interface List<t>{
 
 	command t* getPointer();
 
+	//command bool setNode(uint16_t position);
+
 	command void remove(uint16_t position);
 }
