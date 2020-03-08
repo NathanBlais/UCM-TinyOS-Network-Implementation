@@ -10,293 +10,286 @@
 
 module DistanceVectorRoutingP
 {
-    //Provides the SimpleSend interface in order to flood packets
     provides interface DistanceVectorRouting;
+
     //Uses the SimpleSend interface to forward recieved packet as broadcast
     uses interface SimpleSend as Sender;
     //Uses the Receive interface to determine if received packet is meant for me.
     uses interface Receive as Receiver;
     uses interface AMPacket;
+
+    //Uses the NeighborDiscovery interface get current neighbor list and info.
+    uses interface NeighborDiscovery;
+
+    //Uses the periodicTimer to send packets at regular intervals
+    uses interface Timer<TMilli> as InitalizationWait;
+    uses interface Timer<TMilli> as advertiseTimer;
+
+    uses interface Random;
+    uses interface RouteTable;
+
+//QUESTION:Do we want to use these?
+
     //Uses the Queue interface to determine if packet recieved has been seen before
     uses interface List<pack> as PacketsList;
     //NOTE:remember to store src & seq for each node
-    uses interface NeighborDiscovery;
-    uses interface List<route> as Routes;
-    //make temporary list
-
-    uses interface Timer<TMilli> as periodicTimer;
-
-    uses interface Random;
-
-    //NOTE: Wire a timmer
 }
+
+/* --------- Questions Area --------- *\
+✱This is where we put our general questions
+        ➤•⦿◆ →←↑↓↔︎↕︎↘︎⤵︎⤷⤴︎↳↖︎⤶↲↱⤻
+
+    ➤ What should we store the routes in?
+        •Should it be a diffrent formmat to the one we send?
+    
+    ➤ Is there a hard limmit the ammount of data we can send per packet?
+        •Is there a way to increase it?
+        •Do we have to find a way to split the size of the packet and reconstruct it?
+
+    ➤ Should we create a custom dataStructure for our RoutingTable?
+        ◆ This would give us more flexability and control
+          at the cost of the time it takes to make it.
+
+    ➤
+
+    ➤
+
+
+\* --------- Questions Area --------- */
+
 
 implementation
 {
-    uint16_t SEQ_NUM = 1;
-	pack sendPackage;
-    
-    //uint8_t * neighbors;
+    // Globals
+    pack sendPackage;
+    uint16_t SEQ_NUM=1;
+
+	//NOTE: istead of using a List to store KnownPackets, 
+		  //we keep a simple array or hash to store the latest
+		  //sequence number for each neighbor
 
 
-    route routeHolder;
-
+	// Prototypes
+    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, route * payload, uint8_t length);
+    void printRouteTable();
+    void InitalizeRoutingTable();
     void updateRoutingTable(route * newRoutes, uint16_t size);
 
-    void UpdateNeighborRoutingTable();
-
-    void mergeRoute(route * newRoute);
-
-    void printRouteTable();
-
-    uint16_t pointerArrayCounter(uint8_t * pointer);
 
 
-    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, route * payload, uint8_t length);
+//QUESTION:What do we absolutly need?
 
+//--==Comands==--＼＼
 
+    //NOTE: Comands we need: 
 
+        // • GetNextHop
+
+    //Starts timer to send route values to our neighbors
     command void DistanceVectorRouting.run()
     {
-        uint8_t i;
-        uint8_t costHolder;
-        call periodicTimer.startPeriodic(100000 + (call Random.rand16() %300) ); //add random #
-
-
-         for(i=0; i < 20 /*MAX_ROUTES*/; i++){
-            if(i+1 != TOS_NODE_ID){
-                routeHolder.Destination = i+1;
-                routeHolder.Cost = MAX_ROUTES;
-                //routeHolder.NextHop = ?;
-                routeHolder.TTL = 0;
-                call Routes.pushback(routeHolder);}
-            else{
-                routeHolder.Destination = i+1;
-                routeHolder.Cost = 0;
-                //routeHolder.NextHop = TOS_NODE_ID;
-                routeHolder.TTL = 0;
-                call Routes.pushback(routeHolder);
-            }
-         }
-
+        call InitalizationWait.startPeriodic(30000 + (call Random.rand16() %300)); //30 Seconds
+        //call periodicTimer.startPeriodic(150000 /* 
+      //  + (call Random.rand16() %300) */);
+        //NOTE:we should tune the timming
     }
 
+    //Is called by the CommandHandler to print the nodes Routing Table
     command void DistanceVectorRouting.print()
     {
         printRouteTable();
     }
 
-    event void periodicTimer.fired()
+//--==Events==--＼＼
+
+    event void InitalizationWait.fired()
     {
-        uint8_t i, j=0;
-        dbg(ROUTING_CHANNEL, "PeriodicTimer fired from Routing\n");
-        // update Router list form neighbor list
-        UpdateNeighborRoutingTable();
-
-        //do Split Horizon with posion
-
-        //  for(i=0; i < call Routes.size(); i++){
-        //      if((call Routes.get(i)).Destination = (call NeighborDiscovery.getNeighbors())[i] )
-        //      routeHolder
-
-        //  }
-
-
-
-
-        dbg(ROUTING_CHANNEL, "Sending from DVR\n");
-
-        //optional - call a function to organize the list
-
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_DV, call Routes.getPointer(), sizeof(route) * ;
- 
-        //                              dbg(ROUTING_CHANNEL, "Package Payload: %s\n", TEMP[0]);
-                  dbg(ROUTING_CHANNEL, "Package Payload: %d\n", sendPackage.payload);
-
-        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+        InitalizeRoutingTable();
+        call InitalizationWait.stop();
     }
 
+    event void advertiseTimer.fired(){
+        uint16_t h,i;
+        uint16_t sizeR = call RouteTable.size();
+        uint16_t sizeN = call NeighborDiscovery.getNeighborhoodSize();
+        neighbor * neighborhood = call NeighborDiscovery.getNeighborsPointer();
+        route * routes = call RouteTable.getPointer();
+        route pak;
+        call advertiseTimer.stop(); //stop timer to give time for prossessing
 
 
-    //NOTE: Make a run command that starts after a random ammount of time.
+        dbg(ROUTING_CHANNEL, "Routing advertiseTimer fired\n");
 
-    
+        for(h=0; h < sizeR; h++){ //every destination in RoutingTable
+            for(i=0; i < sizeN; i++){//every neighbor
+                if(neighborhood[i].id != (routes[h].NextHop).id){
+                        pak = routes[h];
+                        makePack(&sendPackage, TOS_NODE_ID,
+                                               neighborhood[i].id,
+                                               1,
+                                               SEQ_NUM,
+                                               PROTOCOL_DV,
+                                               &pak, //NOTE:incompatabe type
+                                               PACKET_MAX_PAYLOAD_SIZE);
+                    call Sender.send(sendPackage,neighborhood[i].id);
+                } 
+                else{ //apply Split Horizon with Poison Reverse
+                     pak = routes[h];
+                     pak.Cost = MAX_COST;
+                        makePack(&sendPackage, TOS_NODE_ID,
+                                               neighborhood[i].id,
+                                               1,
+                                               SEQ_NUM,
+                                               PROTOCOL_DV,
+                                               &pak, //NOTE:incompatabe type
+                                               PACKET_MAX_PAYLOAD_SIZE);
+                    call Sender.send(sendPackage,neighborhood[i].id);
+                }
+            }
+        }
+        call advertiseTimer.startPeriodic(30000); //30 Seconds
+    }
 
-//Broadcast packet
-	command error_t DistanceVectorRouting.send(pack msg, uint16_t dest)
-	{
-		//Attempt to send the packet
-		dbg(ROUTING_CHANNEL, "Sending from Router\n");
+    event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
+        dbg(ROUTING_CHANNEL, "Packet Received in DVRouter\n");
+        //Check to see if the packet is the right size
+        if(len==sizeof(pack)){
+            pack* myMsg=(pack*) payload;
+            route* routes = (route*) myMsg->payload;
 
-		if (call Sender.send(msg, AM_BROADCAST_ADDR) == SUCCESS)
-		{
-			return SUCCESS;
-		}
-		return FAIL;
-	}
+            uint16_t cost = routes->Cost + 1;
+            route forNewRoute;
+            uint16_t position = call RouteTable.getPosition(*routes);
 
-//Event signaled when a DVRouter recieves a packet
-   event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
-      dbg(ROUTING_CHANNEL, "Packet Received in VRouter\n");
-      if(len==sizeof(pack)){
-                  uint8_t i;
-        pack* myMsg=(pack*) payload;
-        route* routes = (route*) myMsg->payload;
+            //Check that the packet has the proper protocol
+            if(myMsg->protocol != PROTOCOL_DV){
+                dbg(ROUTING_CHANNEL, "Wrong Protocal Recived\n");
+                return msg;}
 
+            if((routes->Destination).id == TOS_NODE_ID){
+                return msg;
+            }
+        
+            //main RIP receiver
+            
+                    //if (dest ∈/ known) and (newMetric < 16) then
+            if(position == MAX_ROUTES/* && cost < MAX_COST*/){ //New Route
+                if (call RouteTable.size() >= MAX_ROUTES)
+                    return msg;
+                (forNewRoute.Destination).id = (routes->Destination).id;
+                forNewRoute.Cost = cost; 
+                (forNewRoute.NextHop).id = myMsg->src; 
+                forNewRoute.TTL = 0; 
 
-
-        //int16_t size = pointerArrayCounter(.payload));
-
-        //dbg(ROUTING_CHANNEL, "Size in RECIVER: %d\n", size);
-
-        //dbg(GENERAL_CHANNEL, "RECIVER sizeof(myMsg->payload) = %d\n", sizeof(myMsg->payload));
-
-
-       // for(i=0;i<200 route[])(myMsg->payload)[0]))
-       //     newRoute->NextHop = TOS_NODE_ID;
-
-        for(i = 0; i < MAX_ROUTES && routes[i].Destination != 0; i++){
-            if(routes[i].NextHop = TOS_NODE_ID || routes[i].Destination == myMsg->src){
-                routes[i].NextHop = MAX_TTLroute;
+                call RouteTable.pushback(forNewRoute);
+                //SET TO EXPIRE 
             }
             else{
-                routes[i].NextHop = myMsg->src;
+
+                if((call RouteTable.get(position)).Cost < MAX_COST || (call RouteTable.get(position)).Cost > size)
+
             }
-            dbg(GENERAL_CHANNEL, "RECIVER routes[i].Cost = %d\n", routes[i].Cost);
-        }
 
-        
 
-         updateRoutingTable(routes, i);
+            //if ((routes->Destination).id != ((call RouteTable.get(i)).Destination).id)
 
-         return msg;
-      }
-      dbg(ROUTING_CHANNEL, "Unknown Packet Type %d\n", len);
-      return msg;
+ /*
+
+    else
+    {
+        if (hopsdest < 16 and router = nextRouterdest ) or (newMetric < hopsdest ) 
+        {
+            hopsdest ← newMetric
+            nextRouterdest ← router
+            nextIfacedest ← iface
+
+            if (newMetric = 16) then 
+            {
+                deactivate expiredest
+                set garbageCollectdest to 120 seconds 
+            }
+            else
+            {
+                deactivate garbageCollectdes                    set expiredest to 180 seconds 
+            }
+        } 
+    }
+}
+
+        //NOTE: add more psudo code here!!!
+            // What should we put here or in a seperate function?
+
+        return msg;
+       }
+       dbg(ROUTING_CHANNEL, "Unknown Packet Type %d\n", len);
+       return msg;
    }
-
-    // uint16_t pointerArrayCounter(uint8_t * pointer){
-    //     uint16_t i;
-
-    //     for (i = 0; i < 200 && pointer[i] != 0; i++){} //19 is the max size of neighbor list{}
-    //     return i;
-    // }
+   
 
 
-    //Takes nighbor info and converts it to a Routing table for the updateRoutingTable funcion.
-    void UpdateNeighborRoutingTable(){
+//--==Funcions==--＼＼
+
+   //NOTE: Funcions we need:
+        // •A way to update our "RoutingTable"
+            // This will probubly be split between 2 funcions
+                //One for the revice & another for our neighbors
+        
+        // • We could still use a generic mergeRoute
+
+        // • A way to send the routing table
+
+        // • void printRouteTable()
+
+        // •
+    //NOTE: Funcions we might need:
+        // • A way to extractTable
+
+        // • Maybe a seperate function to Add New rout To the RoutingTable
+        
+        // • Is in list function - depends on if we make our own dataStruct
+
+        // • update cost function
+
+        // •
+
+        //Takes nighbor info and converts it to a Routing table for the updateRoutingTable funcion.
+    void InitalizeRoutingTable(){
         uint16_t i;
-        uint8_t * neighbors = call NeighborDiscovery.getNeighbors();
+        neighbor * neighborhood = call NeighborDiscovery.getNeighborsPointer();
         uint16_t size = call NeighborDiscovery.getNeighborhoodSize(); //pointerArrayCounter(neighbors);
-        route neighborRoutes[size]; //maximum number of neighbors 20??
-
-        dbg(GENERAL_CHANNEL, "Size = %d\n", size);
+        route neighborRoute;
+        //neighbor node = {TOS_NODE_ID, 0};
 
         for (i = 0; i < size; i++){
             //use a Temporary route to insert neighbor info into routing table
-            neighborRoutes[i].Destination = neighbors[i];
-            neighborRoutes[i].NextHop = neighbors[i];
-            neighborRoutes[i].Cost = 0; /* distance metric */ //temprarily for NumOfHops
-            neighborRoutes[i].TTL = MAX_TTLroute;
+            neighborRoute.Destination = neighborhood[i];
+            neighborRoute.NextHop = neighborhood[i];
+            neighborRoute.Cost = 1; /* distance metric */ //temprarily for NumOfHops
+            neighborRoute.TTL = 0;
+
+            call RouteTable.pushback(neighborRoute);
+
         }
-        updateRoutingTable(neighborRoutes, i);
-
+        call advertiseTimer.startPeriodic(30000); //30 Seconds
     }
-
-
-    /*
-    The procedure updateRoutingTable is the main routine that calls mergeRoute
-    to incorporate all the routes contained in a routing update that is received
-    from a neighboring node. */
  
-    void updateRoutingTable(route * newRoutes, uint16_t size)
-    {
-        int i;
-        for (i = 0; i < size; ++i)
-        {
-            if(newRoutes[i].Destination != TOS_NODE_ID)
-                mergeRoute(&newRoutes[i]);
-        }
-    }
-
-
-
-/*
-The routine that updates the local node’s routing table based on a new route is given by mergeRoute. 
-Although not shown, a timer function periodically scans the list of routes in the node’s routing table,
-decrements the TTL (time to live) field of each route, and discards any routes that have a time to live of 0. 
-Notice, however, that the TTL field is reset to MAX TTL any time the route is reconfirmed by an update message 
-from a neighboring node.
-*/
-    void
-        mergeRoute(route * newRoute) {
-        uint16_t i;
-        route * table = call Routes.getPointer();
-        for (i = 0; i < (call Routes.size()) + 1; i++)
-        {
-            if (newRoute->Destination == (call Routes.get(i)).Destination)
-            {
-
-                if (newRoute->Destination == 0)
-                {
-                    return;
-                }
-                if (newRoute->Cost + 1 < (call Routes.get(i)).Cost)
-                {
-                    /* found a better route: */    
-                    break;
-                }
-                // else if (newRoute->NextHop == (call Routes.get(i)).NextHop)
-                // {
-                //     /* metric for current next-hop may have changed: */
-                //     break;
-                // }
-                else
-                {
-                    /* route is uninteresting---just ignore it */
-                    return;
-                }
-            }
-        }
-        if (i == call Routes.size())
-        {
-            /* this is a completely new route; is there room for it? */
-            if (i >= MAX_ROUTES)
-                return; /* can't fit this route in table so give up */
-        }
-
-
-        //(call Routes.get(i)).Destination = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
-        table[i].NextHop = newRoute->NextHop; ///Do we want to update the TTL to MAX_TTL every time we get an update
-
-        dbg(GENERAL_CHANNEL, "1newRoute->Cost = %d\n", newRoute->Cost);
-        dbg(GENERAL_CHANNEL, "2table[i].Cost = %d\n", table[i].Cost);
-        table[i].Cost = newRoute->Cost + 1; /* account for hop to get to next node */ 
-        dbg(GENERAL_CHANNEL, "2newRoute->Cost = %d\n", newRoute->Cost;
-        dbg(GENERAL_CHANNEL, "2table[i].Cost = %d\n", table[i].Cost);
-        table[i].TTL = MAX_TTLroute; ///Do we want to update the TTL to MAX_TTL every time we get an update
-
-
-        //call Routes.pushback(*newRoute);
-
-        /* reset TTL */
-    }
 
     void printRouteTable()
     {
-        uint16_t size = call Routes.size();
+        uint16_t size = call RouteTable.size();
         uint8_t i;
         route node;
 
-        dbg(GENERAL_CHANNEL, "Node %d Route List:\n", TOS_NODE_ID);
+        dbg(GENERAL_CHANNEL, "Node %d | Size %d Route List:\n", TOS_NODE_ID, size);
 
         for (i = 0; i < size; i++)
         {
-            node = call Routes.get(i);
-            dbg(GENERAL_CHANNEL, "\t\tDestination: %d Cost: %d NextHop: %d TTL: %d\n", node.Destination, node.Cost, node.NextHop, node.TTL);
+            node = call RouteTable.get(i);
+            dbg(GENERAL_CHANNEL, "\t\tDestination: %d Cost: %d NextHop: %d TTL: %d\n", (node.Destination).id, node.Cost, (node.NextHop).id, node.TTL);
         }
     }
-
+        
+    //we may need to change this due to the changed payload
     void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, route * payload, uint8_t length)
     {
         Package->src = src;
@@ -306,5 +299,110 @@ from a neighboring node.
         Package->protocol = protocol;
         memcpy(Package->payload, payload, length);
     }
+    
+}//for implementation
 
+
+/*
+A.1. RIP PSEUDO-CODE.
+
+process RIPRouter
+
+state:
+
+    me                                          // ID of the router
+    interfaces                                  // Set of router’s interfaces
+    known                                       // Set of destinations with known routes
+    hopsdest                                    // Estimated distance to dest
+    nextRouterdest                              // Next router on the way to dest
+    nextIfacedest                               // Interface over which the route advertisement was received 
+    timer expiredest                            // Expiration timer for the route
+    timer garbageCollectdest                    // Garbage collection timer for the route
+    timer advertise                             // Timer for periodic advertisements
+
+initially:
+{
+    known ← the set of all networks to which the router is connected. 
+    for dest ∈ known
+    {
+        hopsdest = 1
+        nextRouterdest = me
+        nextIfacedest = the interface that connects the router to dest.
+    }
+    set advertise to 30 seconds 
 }
+
+events:
+    receive RIP (router, dest, hopCnt) over iface 
+    timeout (expiredest)
+    timeout (garbageCollectdest)
+    timeout (advertise)
+
+    utility functions:
+        broadcast (msg, iface) 
+        {
+          Broadcast message msg to all the routers attached to the network on the other side
+          of interface iface. 
+        }
+
+
+event handlers:
+
+receive RIP (router, dest, hopCnt) over iface 
+{
+    newMetric ← min (1 + hopCnt, 16)
+    if (dest ∈/ known) and (newMetric < 16) then 
+    {
+        known ← known ∪ { dest } 
+        hopsdest ← newMetric
+        nextRouterdest ← router 
+        nextIfacedest ← iface
+        set expiredest to 180 seconds 
+    } 
+    else
+    {
+        if (hopsdest < 16 and router = nextRouterdest ) or (newMetric < hopsdest ) 
+        {
+            hopsdest ← newMetric
+            nextRouterdest ← router
+            nextIfacedest ← iface
+
+            if (newMetric = 16) then 
+            {
+                deactivate expiredest
+                set garbageCollectdest to 120 seconds 
+            }
+            else
+            {
+                deactivate garbageCollectdes                    set expiredest to 180 seconds 
+            }
+        } 
+    }
+}
+
+timeout (expiredest) 
+{
+    hopsdest ← 16
+    set garbageCollectdest to 120 seconds 
+}
+
+timeout (garbageCollectdest) 
+{
+    known ← known − { dest } 
+}
+
+timeout (advertise) 
+{
+    for each dest ∈ known do
+     for each i ∈ interfaces do {
+        if (i ̸= nextIfacedest) then {
+            broadcast ([RIP (me, dest, hopsdest)], i) 
+        } 
+        else
+        {
+            broadcast ([RIP (me, dest, 16)], i) // Split horizon with poisoned reverse
+        } 
+    }
+    set advertise to 30 seconds 
+}
+*/

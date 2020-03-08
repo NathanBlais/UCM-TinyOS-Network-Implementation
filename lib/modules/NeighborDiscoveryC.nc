@@ -1,11 +1,9 @@
 //Author:Nathan Blais
-
 configuration NeighborDiscoveryC{
 	provides interface NeighborDiscovery;
 }
 
 implementation {
-	//Export the implemention
 	components NeighborDiscoveryP;	
 	NeighborDiscovery = NeighborDiscoveryP.NeighborDiscovery;
 
@@ -25,7 +23,8 @@ implementation {
     components new ListC(neighbor, 20) as Neighborhood;
     NeighborDiscoveryP.Neighborhood -> Neighborhood;
 
-	components new TimerMilliC() as periodicTimer; //create a new timer with alias "myTimerC"
+	//create a new timer with alias "periodicTimer"
+	components new TimerMilliC() as periodicTimer;
 	NeighborDiscoveryP.periodicTimer -> periodicTimer;
 	
 }

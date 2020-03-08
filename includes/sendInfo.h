@@ -16,18 +16,21 @@ typedef struct sendInfo{
 }sendInfo;
 
 typedef struct neighbor {
-		uint8_t id;
+		uint16_t id;
 		bool flag;
-        //maybe add other values here
+//store a RTT here
 }neighbor;
 
-typedef struct route
-    {
-        uint16_t Destination; /* address of destination */
-        uint16_t NextHop;     /* address of next hop */
-        uint16_t Cost;             /* distance metric */ //temprarily for NumOfHops
+typedef struct route{
+        neighbor Destination; /* address of destination */
+        neighbor NextHop;     /* address of next hop */
+        uint8_t Cost;             /* distance metric */ //temprarily for NumOfHops
+
         //add other values to determin 
         uint16_t TTL;          /* time to live */
-    } route;
+}route;
+
+
+
 
 #endif /* PACK_BUFFER_H */
