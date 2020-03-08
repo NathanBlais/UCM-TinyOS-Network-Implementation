@@ -164,7 +164,7 @@ implementation
         if(len==sizeof(pack)){
             pack* myMsg=(pack*) payload;
             route* routes = (route*) myMsg->payload;
-
+            route* theTable = call RouteTable.getPointer();
             uint16_t cost = routes->Cost + 1;
             route forNewRoute;
             uint16_t position = call RouteTable.getPosition(*routes);
@@ -194,11 +194,24 @@ implementation
                 call RouteTable.pushback(forNewRoute);
                 //SET TO EXPIRE 
             }
-            //else{
+            else{
 
-            //    if((call RouteTable.get(position)).Cost < MAX_COST || (call RouteTable.get(position)).Cost > cost)
+                if(/*(call RouteTable.get(position)).Cost < MAX_COST ||*/ (call RouteTable.get(position)).Cost > cost)
+                {
 
-            //}
+                    //call RouteTable.getPointer;
+                   // (call RouteTable.get(position)).Destination.id = (routes->Destination).id;
+                    //(call ROut)
+
+                    (theTable[position].Destination).id = (routes->Destination).id;
+                    theTable[position].Cost = cost;
+                    (theTable[position].NextHop).id = (routes->NextHop).id;
+                   // theTable[position]->Destination.id = (routes->Destination).id;
+
+
+                }
+
+            }
 
 
             //if ((routes->Destination).id != ((call RouteTable.get(i)).Destination).id)
