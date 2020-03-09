@@ -25,7 +25,7 @@ module DistanceVectorRoutingP
     uses interface Timer<TMilli> as InitalizationWait;
     uses interface Timer<TMilli> as advertiseTimer;
 
-    uses interface Random;
+    uses interface Random; //Not really used anymore
     uses interface RouteTable;
 
     //interface PacketAcknowledgements <- i just found this
@@ -52,10 +52,6 @@ module DistanceVectorRoutingP
         •Is there a way to increase it?
         •Do we have to find a way to split the size of the packet and reconstruct it?
 
-    ➤ Should we create a custom dataStructure for our RoutingTable?
-        ◆ This would give us more flexability and control
-          at the cost of the time it takes to make it.
-
     ➤
 
     ➤
@@ -81,15 +77,8 @@ implementation
     void InitalizeRoutingTable();
     void updateRoutingTable(route * newRoutes, uint16_t size);
 
-
-
-//QUESTION:What do we absolutly need?
-
 //--==Comands==--＼＼
 
-    //NOTE: Comands we need: 
-
-        // • GetNextHop
 
     //Starts timer to send route values to our neighbors
     command void DistanceVectorRouting.run()
@@ -220,104 +209,6 @@ implementation
        return msg;
    }
 
-//     event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
-//         dbg(ROUTING_CHANNEL, "Packet Received in DVRouter\n");
-//         //Check to see if the packet is the right size
-//         if(len==sizeof(pack)){
-//             pack* myMsg=(pack*) payload;
-//             route* routes;
-//             route* theTable;
-//             uint16_t cost ;
-//             route forNewRoute;
-//             uint16_t position;  
-//             uint16_t i;
-//             route* tableForPing;
-//             uint16_t size;
-//             uint16_t NextHopPing;
-//             uint8_t costPing;
-//             pack sendPackagePing;
-//             if (myMsg->protocol == PROTOCOL_PING)
-//             {
-               
-//                 dbg(GENERAL_CHANNEL, "Protocol is PROTOCOL PING \n");
-
-//                  if (myMsg->dest == TOS_NODE_ID)
-//                  {
-//                      dbg(GENERAL_CHANNEL, "Ping is at desired destination, which is node %d \n", TOS_NODE_ID);
-//                  }
-//                  else{
-//                     tableForPing = call RouteTable.getPointer();
-//                     size = call RouteTable.size();
-//                      for (i = 0; i < size; i++)
-//                         {
-//                         if ((tableForPing[i].Destination).id == myMsg->dest)
-//                             {
-//                             NextHopPing = (tableForPing[i].NextHop).id;
-//                             costPing = tableForPing[i].Cost;
-//                             }
-//                         }
-                
-//                 dbg(GENERAL_CHANNEL, "We're at node: %d \n", TOS_NODE_ID);
-//                 dbg(GENERAL_CHANNEL, "src: %d, dest: %d, seq: %d nexthop: %d cost %d \n", myMsg->src, myMsg->dest, myMsg->seq, NextHopPing, costPing);
-//                 dbg(GENERAL_CHANNEL, "Ping Message:%s\n", myMsg->payload);
-//                 makePackPing(&sendPackagePing, myMsg->src, myMsg->dest, MAX_TTL-1, myMsg->seq, PROTOCOL_PING, (uint8_t *)myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-//                 call Sender.send(sendPackagePing, NextHopPing);
-//                  }
-//                 return msg;
-
-//             }
-
-
-//             routes = (route*) myMsg->payload;
-//             theTable = call RouteTable.getPointer();
-//             cost = routes->Cost + 1;
-//             position = call RouteTable.getPosition(*routes);
-
-//             //Check that the packet has the proper protocol
-//             if(myMsg->protocol != PROTOCOL_DV){
-//                 dbg(ROUTING_CHANNEL, "Wrong Protocal Recived\n");
-//                 return msg;}
-
-//             if((routes->Destination).id == TOS_NODE_ID){
-//                 return msg;
-//             }
-        
-//             //main RIP receiver
-            
-//                     //if (dest ∈/ known) and (newMetric < 16) then
-//             if(position == MAX_ROUTES/* && cost < MAX_COST*/){ //New Route
-//                 if (call RouteTable.size() >= MAX_ROUTES){
-//                     dbg(GENERAL_CHANNEL, "Routing Table Full\n");
-
-//                     return msg;}
-//                 (forNewRoute.Destination).id = (routes->Destination).id;
-//                 forNewRoute.Cost = cost; 
-//                 (forNewRoute.NextHop).id = myMsg->src; 
-//                 forNewRoute.TTL = 0; 
-
-//                 call RouteTable.pushback(forNewRoute);
-//                 //SET TO EXPIRE 
-//             }
-//             else{
-
-//                 if(/*(call RouteTable.get(position)).Cost < MAX_COST ||*/ (call RouteTable.get(position)).Cost > cost)
-//                 {
-
-//                     //call RouteTable.getPointer;
-//                    // (call RouteTable.get(position)).Destination.id = (routes->Destination).id;
-//                     //(call ROut)
-
-//                     (theTable[position].Destination).id = (routes->Destination).id;
-//                     theTable[position].Cost = cost;
-//                     (theTable[position].NextHop).id = (routes->NextHop).id;
-//                    // theTable[position]->Destination.id = (routes->Destination).id;
-
-
-//                 }
-
-//             }
-   
-
 //--==Funcions==--＼＼
 
     void InitalizeRoutingTable(){
@@ -367,108 +258,3 @@ implementation
     }
     
 }//for implementation
-
-
-/*
-A.1. RIP PSEUDO-CODE.
-
-process RIPRouter
-
-state:
-
-    me                                          // ID of the router
-    interfaces                                  // Set of router’s interfaces
-    known                                       // Set of destinations with known routes
-    hopsdest                                    // Estimated distance to dest
-    nextRouterdest                              // Next router on the way to dest
-    nextIfacedest                               // Interface over which the route advertisement was received 
-    timer expiredest                            // Expiration timer for the route
-    timer garbageCollectdest                    // Garbage collection timer for the route
-    timer advertise                             // Timer for periodic advertisements
-
-initially:
-{
-    known ← the set of all networks to which the router is connected. 
-    for dest ∈ known
-    {
-        hopsdest = 1
-        nextRouterdest = me
-        nextIfacedest = the interface that connects the router to dest.
-    }
-    set advertise to 30 seconds 
-}
-
-events:
-    receive RIP (router, dest, hopCnt) over iface 
-    timeout (expiredest)
-    timeout (garbageCollectdest)
-    timeout (advertise)
-
-    utility functions:
-        broadcast (msg, iface) 
-        {
-          Broadcast message msg to all the routers attached to the network on the other side
-          of interface iface. 
-        }
-
-
-event handlers:
-
-receive RIP (router, dest, hopCnt) over iface 
-{
-    newMetric ← min (1 + hopCnt, 16)
-    if (dest ∈/ known) and (newMetric < 16) then 
-    {
-        known ← known ∪ { dest } 
-        hopsdest ← newMetric
-        nextRouterdest ← router 
-        nextIfacedest ← iface
-        set expiredest to 180 seconds 
-    } 
-    else
-    {
-        if (hopsdest < 16 and router = nextRouterdest ) or (newMetric < hopsdest ) 
-        {
-            hopsdest ← newMetric
-            nextRouterdest ← router
-            nextIfacedest ← iface
-
-            if (newMetric = 16) then 
-            {
-                deactivate expiredest
-                set garbageCollectdest to 120 seconds 
-            }
-            else
-            {
-                deactivate garbageCollectdes                    set expiredest to 180 seconds 
-            }
-        } 
-    }
-}
-
-timeout (expiredest) 
-{
-    hopsdest ← 16
-    set garbageCollectdest to 120 seconds 
-}
-
-timeout (garbageCollectdest) 
-{
-    known ← known − { dest } 
-}
-
-timeout (advertise) 
-{
-    for each dest ∈ known do
-     for each i ∈ interfaces do {
-        if (i ̸= nextIfacedest) then {
-            broadcast ([RIP (me, dest, hopsdest)], i) 
-        } 
-        else
-        {
-            broadcast ([RIP (me, dest, 16)], i) // Split horizon with poisoned reverse
-        } 
-    }
-    set advertise to 30 seconds 
-}
-*/

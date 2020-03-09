@@ -113,7 +113,6 @@ implementation{
       SEQ_NUM++;
       //call Sender.send(sendPackage, destination);
       //call Flooder.send(sendPackage, destination);
-
       call Sender.send(sendPackage, call DistanceVectorRouting.GetNextHop(destination));
    }
 
