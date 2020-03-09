@@ -83,7 +83,7 @@ implementation
 					dbg(GENERAL_CHANNEL, "Package Payload: %s\n", contents->payload);
 				}
 				else
-					dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocal\n");
+					dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol\n");
 			}
 			else //the packet is not meant for the current node
 			{

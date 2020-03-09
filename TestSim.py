@@ -176,8 +176,8 @@ def main():
 #####***DVR TEST***##### 
 
     s.runTime(1);
-    s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
-    s.runTime(1);
+    #s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
+    s.runTime(150);
     s.routeDMP(1);
     s.runTime(1);
     s.routeDMP(2);
@@ -215,7 +215,9 @@ def main():
     s.routeDMP(18);
     s.runTime(1);
     s.routeDMP(19);
-    s.runTime(1);
+    s.runTime(10);
+    s.ping(1, 19, "Hi!");
+    s.runTime(100);
 
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
@@ -233,10 +235,13 @@ def main():
 
 #####***PACKET  FLOODING   TEST***#####
     # s.runTime(20);
-    #s.ping(1, 2, "Hello, World");
-    #s.runTime(10);
-    #s.ping(1, 6, "Hi!");
-    #s.runTime(50);
+    # s.ping(1, 2, "Hello, World");
+    # s.runTime(10);
+    # s.ping(1, 17, "Hi!");
+    # s.runTime(5);
+    # s.runTime(1);
+    # s.routeDMP(17);
+    # s.runTime(100);
 
 
 

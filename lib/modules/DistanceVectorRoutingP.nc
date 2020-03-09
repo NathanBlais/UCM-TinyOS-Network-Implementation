@@ -107,6 +107,22 @@ implementation
         printRouteTable();
     }
 
+    //
+    command uint16_t DistanceVectorRouting.GetNextHop(uint16_t destination)
+    {
+        neighbor tempN = {destination, 0};
+        route tempR = {tempN};
+        uint16_t position = call RouteTable.getPosition(tempR);
+        dbg(ROUTING_CHANNEL, "Getting Next Hop\n");
+        
+        if(position == MAX_ROUTES){
+            dbg(ROUTING_CHANNEL, "The route is not known\n");
+            return 0;
+        }
+
+        return(((call RouteTable.get(position)).NextHop).id);
+    }
+
 //--==Events==--＼＼
 
     event void InitalizationWait.fired()
@@ -122,8 +138,6 @@ implementation
         neighbor * neighborhood = call NeighborDiscovery.getNeighborsPointer();
         route * routes = call RouteTable.getPointer();
         route pak;
-        //call advertiseTimer.stop(); //stop timer to give time for prossessing
-
 
         dbg(ROUTING_CHANNEL, "Routing advertiseTimer fired\n");
 
@@ -155,7 +169,6 @@ implementation
             }
         }
         call advertiseTimer.startOneShot(6000);
-        //call advertiseTimer.startPeriodic(10000); //30 Seconds
     }
 
     event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
@@ -174,17 +187,15 @@ implementation
                 dbg(ROUTING_CHANNEL, "Wrong Protocal Recived\n");
                 return msg;}
 
+            //Check that the route's "destination" is not the current node
             if((routes->Destination).id == TOS_NODE_ID){
                 return msg;
             }
-        
             //main RIP receiver
-            
                     //if (dest ∈/ known) and (newMetric < 16) then
             if(position == MAX_ROUTES/* && cost < MAX_COST*/){ //New Route
                 if (call RouteTable.size() >= MAX_ROUTES){
-                    dbg(GENERAL_CHANNEL, "Routing Table Full\n");
-
+                    dbg(ROUTING_CHANNEL, "Routing Table Full\n");
                     return msg;}
                 (forNewRoute.Destination).id = (routes->Destination).id;
                 forNewRoute.Cost = cost; 
@@ -195,87 +206,120 @@ implementation
                 //SET TO EXPIRE 
             }
             else{
-
-                if(/*(call RouteTable.get(position)).Cost < MAX_COST ||*/ (call RouteTable.get(position)).Cost > cost)
+                if((call RouteTable.get(position)).Cost > cost /*|| (call RouteTable.get(position)).Cost < MAX_COST*/)
                 {
-
-                    //call RouteTable.getPointer;
-                   // (call RouteTable.get(position)).Destination.id = (routes->Destination).id;
-                    //(call ROut)
-
                     (theTable[position].Destination).id = (routes->Destination).id;
                     theTable[position].Cost = cost;
                     (theTable[position].NextHop).id = (routes->NextHop).id;
-                   // theTable[position]->Destination.id = (routes->Destination).id;
-
-
+                   //theTable[position]->Destination.id = (routes->Destination).id;
                 }
-
             }
-
-
-            //if ((routes->Destination).id != ((call RouteTable.get(i)).Destination).id)
-
- /*
-
-    else
-    {
-        if (hopsdest < 16 and router = nextRouterdest ) or (newMetric < hopsdest ) 
-        {
-            hopsdest ← newMetric
-            nextRouterdest ← router
-            nextIfacedest ← iface
-
-            if (newMetric = 16) then 
-            {
-                deactivate expiredest
-                set garbageCollectdest to 120 seconds 
-            }
-            else
-            {
-                deactivate garbageCollectdes                    set expiredest to 180 seconds 
-            }
-        } 
-    }
-}*/
-
-        //NOTE: add more psudo code here!!!
-            // What should we put here or in a seperate function?
-
         return msg;
        }
        dbg(ROUTING_CHANNEL, "Unknown Packet Type %d\n", len);
        return msg;
    }
-   
 
+//     event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
+//         dbg(ROUTING_CHANNEL, "Packet Received in DVRouter\n");
+//         //Check to see if the packet is the right size
+//         if(len==sizeof(pack)){
+//             pack* myMsg=(pack*) payload;
+//             route* routes;
+//             route* theTable;
+//             uint16_t cost ;
+//             route forNewRoute;
+//             uint16_t position;  
+//             uint16_t i;
+//             route* tableForPing;
+//             uint16_t size;
+//             uint16_t NextHopPing;
+//             uint8_t costPing;
+//             pack sendPackagePing;
+//             if (myMsg->protocol == PROTOCOL_PING)
+//             {
+               
+//                 dbg(GENERAL_CHANNEL, "Protocol is PROTOCOL PING \n");
+
+//                  if (myMsg->dest == TOS_NODE_ID)
+//                  {
+//                      dbg(GENERAL_CHANNEL, "Ping is at desired destination, which is node %d \n", TOS_NODE_ID);
+//                  }
+//                  else{
+//                     tableForPing = call RouteTable.getPointer();
+//                     size = call RouteTable.size();
+//                      for (i = 0; i < size; i++)
+//                         {
+//                         if ((tableForPing[i].Destination).id == myMsg->dest)
+//                             {
+//                             NextHopPing = (tableForPing[i].NextHop).id;
+//                             costPing = tableForPing[i].Cost;
+//                             }
+//                         }
+                
+//                 dbg(GENERAL_CHANNEL, "We're at node: %d \n", TOS_NODE_ID);
+//                 dbg(GENERAL_CHANNEL, "src: %d, dest: %d, seq: %d nexthop: %d cost %d \n", myMsg->src, myMsg->dest, myMsg->seq, NextHopPing, costPing);
+//                 dbg(GENERAL_CHANNEL, "Ping Message:%s\n", myMsg->payload);
+//                 makePackPing(&sendPackagePing, myMsg->src, myMsg->dest, MAX_TTL-1, myMsg->seq, PROTOCOL_PING, (uint8_t *)myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+//                 call Sender.send(sendPackagePing, NextHopPing);
+//                  }
+//                 return msg;
+
+//             }
+
+
+//             routes = (route*) myMsg->payload;
+//             theTable = call RouteTable.getPointer();
+//             cost = routes->Cost + 1;
+//             position = call RouteTable.getPosition(*routes);
+
+//             //Check that the packet has the proper protocol
+//             if(myMsg->protocol != PROTOCOL_DV){
+//                 dbg(ROUTING_CHANNEL, "Wrong Protocal Recived\n");
+//                 return msg;}
+
+//             if((routes->Destination).id == TOS_NODE_ID){
+//                 return msg;
+//             }
+        
+//             //main RIP receiver
+            
+//                     //if (dest ∈/ known) and (newMetric < 16) then
+//             if(position == MAX_ROUTES/* && cost < MAX_COST*/){ //New Route
+//                 if (call RouteTable.size() >= MAX_ROUTES){
+//                     dbg(GENERAL_CHANNEL, "Routing Table Full\n");
+
+//                     return msg;}
+//                 (forNewRoute.Destination).id = (routes->Destination).id;
+//                 forNewRoute.Cost = cost; 
+//                 (forNewRoute.NextHop).id = myMsg->src; 
+//                 forNewRoute.TTL = 0; 
+
+//                 call RouteTable.pushback(forNewRoute);
+//                 //SET TO EXPIRE 
+//             }
+//             else{
+
+//                 if(/*(call RouteTable.get(position)).Cost < MAX_COST ||*/ (call RouteTable.get(position)).Cost > cost)
+//                 {
+
+//                     //call RouteTable.getPointer;
+//                    // (call RouteTable.get(position)).Destination.id = (routes->Destination).id;
+//                     //(call ROut)
+
+//                     (theTable[position].Destination).id = (routes->Destination).id;
+//                     theTable[position].Cost = cost;
+//                     (theTable[position].NextHop).id = (routes->NextHop).id;
+//                    // theTable[position]->Destination.id = (routes->Destination).id;
+
+
+//                 }
+
+//             }
+   
 
 //--==Funcions==--＼＼
 
-   //NOTE: Funcions we need:
-        // •A way to update our "RoutingTable"
-            // This will probubly be split between 2 funcions
-                //One for the revice & another for our neighbors
-        
-        // • We could still use a generic mergeRoute
-
-        // • A way to send the routing table
-
-        // • void printRouteTable()
-
-        // •
-    //NOTE: Funcions we might need:
-        // • A way to extractTable
-
-        // • Maybe a seperate function to Add New rout To the RoutingTable
-        
-        // • Is in list function - depends on if we make our own dataStruct
-
-        // • update cost function
-
-        // •
-
-        //Takes nighbor info and converts it to a Routing table for the updateRoutingTable funcion.
     void InitalizeRoutingTable(){
         uint16_t i;
         neighbor * neighborhood = call NeighborDiscovery.getNeighborsPointer();
@@ -312,7 +356,6 @@ implementation
         }
     }
         
-    //we may need to change this due to the changed payload
     void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, route * payload, uint8_t length)
     {
         Package->src = src;
