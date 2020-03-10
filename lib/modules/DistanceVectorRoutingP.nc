@@ -112,6 +112,23 @@ implementation
         return(((call RouteTable.get(position)).NextHop).id);
     }
 
+
+
+    command uint16_t DistanceVectorRouting.GetCost(uint16_t destination)
+    {
+        neighbor tempN = {destination, 0};
+        route tempR = {tempN};
+        uint16_t position = call RouteTable.getPosition(tempR);
+       // dbg(ROUTING_CHANNEL, "Getting Next Hop\n");
+        
+        if(position == MAX_ROUTES){
+            dbg(ROUTING_CHANNEL, "The route is not known\n");
+            return 0;
+        }
+
+        return((call RouteTable.get(position)).Cost);
+    }
+
 //--==Events==--＼＼
 
     event void InitalizationWait.fired()
@@ -243,7 +260,7 @@ implementation
         for (i = 0; i < size; i++)
         {
             node = call RouteTable.get(i);
-            dbg(GENERAL_CHANNEL, "\t\tDestination: %d Cost: %d NextHop: %d TTL: %d\n", (node.Destination).id, node.Cost, (node.NextHop).id, node.TTL);
+            dbg(GENERAL_CHANNEL, "\t\tDestination: %d Count: %d NextHop: %d TTL: %d\n", (node.Destination).id, node.Cost, (node.NextHop).id, node.TTL);
         }
     }
         

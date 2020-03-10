@@ -215,7 +215,7 @@ def main():
     s.routeDMP(18);
     s.runTime(1);
     s.routeDMP(19);
-    s.runTime(10);
+    s.runTime(120);
     s.ping(1, 19, "Hi!");
     s.runTime(100);
 
