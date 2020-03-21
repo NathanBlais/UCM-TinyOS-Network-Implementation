@@ -151,7 +151,8 @@ def main():
     s = TestSim();
     s.runTime(10);
     #s.loadTopo("example.topo");
-    s.loadTopo("long_line.topo");
+    #s.loadTopo("long_line.topo");
+    s.loadTopo("Project2Topo.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     #General
@@ -216,7 +217,7 @@ def main():
     s.runTime(1);
     s.routeDMP(19);
     s.runTime(120);
-    s.ping(1, 19, "Hi!");
+    s.ping(2, 6, "Hi!");
     s.runTime(100);
 
 
