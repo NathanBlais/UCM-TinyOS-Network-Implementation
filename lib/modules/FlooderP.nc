@@ -17,31 +17,31 @@ module FlooderP
     uses interface AMPacket;
 	//Uses the Queue interface to determine if packet recieved has been seen before
 	uses interface List<pack> as KnownPacketsList;
-
+	//Uses the NeighborDiscovery interface to get a list of connected neighbors
 	uses interface NeighborDiscovery;
 }
 
 implementation
 {
+	// Globals
 	pack sendPackage;
-	uint8_t * neighbors; //Maximum of 20 neighbors?
+	uint16_t * neighbors; //Maximum of 20 neighbors?
 
 
 	// Prototypes
-	void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t * payload, uint8_t length);
+	void makePack(pack * Package, uint16_t src, uint16_t dest,
+								  uint16_t TTL, uint16_t seq, 
+								  uint16_t protocol, uint8_t * payload,
+								  uint8_t length);
 	bool isInList(pack packet);
 	error_t addToList(pack packet);
 
 	//Broadcast packet
 	command error_t Flooder.send(pack msg, uint16_t dest)
 	{
-		//Attempt to send the packet
 		dbg(FLOODING_CHANNEL, "Sending from Flooder\n");
-
 		if (call Sender.send(msg, AM_BROADCAST_ADDR) == SUCCESS)
-		{
 			return SUCCESS;
-		}
 		return FAIL;
 	}
 
@@ -53,24 +53,23 @@ implementation
 		{
 			pack *contents = (pack *)payload;
 
-
-			//If I am the original sender or have seen the packet before, drop it
-			if ((contents->src == TOS_NODE_ID) || isInList(*contents))
-			{
+			//Checks if I am the original sender or have seen the packet before
+			if ((contents->src == TOS_NODE_ID) || isInList(*contents)){
 				dbg(FLOODING_CHANNEL, "Dropping packet.\n");
 				return msg;
 			}
-			//Kill the packet if TTL is 0
-			if (contents->TTL == 0){
-            //do nothing
-            dbg(FLOODING_CHANNEL, "TTL: %d\n", contents-> TTL);
-            return msg;
+			if (contents->TTL == 0){ //Kill the packet if TTL is 0
+            	dbg(FLOODING_CHANNEL, "TTL: %d\n", contents-> TTL);
+				//do nothing
+            	return msg;
             }
 			
 			dbg(FLOODING_CHANNEL, "Packet has not been seen before, adding it to List\n");
 			addToList(*contents);
+
+			//Check if the packet is meant for the current node
 			if (contents->dest == TOS_NODE_ID)
-			{ //if the packet is meant for the current node
+			{ //Check the packet's protocol number
 				if (PROTOCOL_PING == contents->protocol)
 				{
 					dbg(GENERAL_CHANNEL, "Ping Message:%s\n", contents->payload);
@@ -84,26 +83,25 @@ implementation
 					dbg(GENERAL_CHANNEL, "Package Payload: %s\n", contents->payload);
 				}
 				else
-				{
-					dbg(GENERAL_CHANNEL, "temp output statment\n");
-				}
+					dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol\n");
 			}
-			else
-			{//the packet is not meant for the current node
+			else //the packet is not meant for the current node
+			{
 				contents-> TTL = (contents->TTL) - 1; //Reduce TTL
+				
+				dbg(FLOODING_CHANNEL, "Packet is not ment for current node. Passing it on.\n");
+
+				//Check the packet's protocol number
 				if (PROTOCOL_PING == contents->protocol)
 				{
-					am_addr_t e = call AMPacket.source(msg);
-					dbg(FLOODING_CHANNEL, "Flooding Ping\n");
+					am_addr_t imidiateSender = call AMPacket.source(msg); //Gets the adress of the imidiate sender
+					neighbors = call NeighborDiscovery.getNeighbors(); //Gets an array of neigbor adresses
 
-					neighbors = call NeighborDiscovery.getNeighbors();
-
-					dbg(FLOODING_CHANNEL, "neighbors[0]: %d\n", neighbors[1]);
 					if(neighbors[0] != 0){
-						uint8_t i;
-						//loop to send if neighbors list is populated
-						for(i=0; i < 19 && neighbors[i] != 0; i++){
-							if (neighbors[i] != (uint8_t) e)
+						uint16_t i;
+						//Sends packet without sending to imidiate sender 
+						for(i=0; i < call NeighborDiscovery.getNeighborhoodSize() && neighbors[i] != 0; i++){
+							if (neighbors[i] != (uint16_t) imidiateSender)
 								call Sender.send(*contents, neighbors[i]);
 						}
 					}
@@ -113,17 +111,14 @@ implementation
 				}
 				else if (PROTOCOL_PINGREPLY == contents->protocol)
 				{
-					am_addr_t e = call AMPacket.source(msg);
-					dbg(FLOODING_CHANNEL,"am_addr_t e %d\n", e);
+					am_addr_t imidiateSender = call AMPacket.source(msg);
 					dbg(FLOODING_CHANNEL, "Flooding Ping Reply\n");
 					neighbors = call NeighborDiscovery.getNeighbors();
-
-					dbg(FLOODING_CHANNEL, "neighbors[0]: %d\n", neighbors[0]);
 					if(neighbors[0] != 0){
-						uint8_t i;
+						uint16_t i;
 						//loop to send if neighbors list is populated
 						for(i=0; i < 19 && neighbors[i] != 0; i++){
-							if (neighbors[i] != (uint8_t) e)
+							if (neighbors[i] != (uint16_t) imidiateSender)
 								call Sender.send(*contents, neighbors[i]);
 						}
 					}
@@ -166,9 +161,7 @@ implementation
 			{
 				pkt = call KnownPacketsList.get(i);
 				if (packet.src == pkt.src && packet.seq == pkt.seq)
-				{
 					return TRUE;
-				}
 			}
 		}
 		return FALSE;
@@ -181,20 +174,13 @@ implementation
 		//uint16_t size = call KnownPacketsList.size();
 
 		if (call KnownPacketsList.pushback(packet) == TRUE)
-		{
 			return SUCCESS;
-		}
-		else
-		{
+		else{
 			call KnownPacketsList.popfront();
 			if (call KnownPacketsList.pushback(packet) == TRUE)
-			{
 				return SUCCESS;
-			}
 			else
-			{
 				return FAIL;
-			}
 		}
 	}
-}
+}//for implementation

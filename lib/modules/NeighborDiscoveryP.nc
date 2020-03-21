@@ -6,10 +6,11 @@
 #include "../../includes/sendInfo.h"
 #include "../../includes/channels.h"
 
+#define MAX_NEIGHBORS 20
+
+
 module NeighborDiscoveryP
 {
-
-    //Provides the SimpleSend interface in order to neighbor discover packets
     provides interface NeighborDiscovery;
     //Uses SimpleSend interface to forward recieved packet as broadcast
     uses interface SimpleSend as Sender;
@@ -23,28 +24,31 @@ module NeighborDiscoveryP
 
 implementation
 {
-
+	// Globals
     pack sendPackage;
     neighbor neighborHolder;
-    uint16_t SEQ_NUM = 0;
+    uint16_t neighbors[MAX_NEIGHBORS];
+    uint16_t SEQ_NUM = 1;
     uint8_t tmp = 8; //put in to avoid warning
     uint8_t *temp = &tmp;
+    
 
-    void makePack(pack * Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t * payload, uint8_t length);
 
-    bool isNeighbor(uint8_t nodeid);
-    error_t addNeighbor(uint8_t nodeid);
+    // Prototypes
+    void makePack(pack * Package, uint16_t src, uint16_t dest,
+                    uint16_t TTL, uint16_t seq, uint16_t protocol,
+                    uint8_t * payload, uint8_t length);
+    bool isNeighbor(uint16_t nodeid);
+    error_t addNeighbor(uint16_t nodeid);
     void updateNeighbors();
     void printNeighborhood();
-
-    uint8_t neighbors[19]; //Maximum of 20 neighbors?
 
     command void NeighborDiscovery.run()
     {
         makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_PING, temp, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 
-        call periodicTimer.startPeriodic(100000);
+        call periodicTimer.startPeriodic(10000);
     }
 
     event void periodicTimer.fired()
@@ -69,15 +73,14 @@ implementation
             pack *contents = (pack *)payload;
             dbg(NEIGHBOR_CHANNEL, "NeighborReciver Called \n");
 
-            if (PROTOCOL_PING == contents->protocol) //got a message, not a reply
+            if (PROTOCOL_PING == contents->protocol)
             {
-
                 contents->src = TOS_NODE_ID;
                 contents->dest = call AMPacket.source(msg);
                 contents->TTL = (contents->TTL) - 1;
                 contents->protocol = PROTOCOL_PINGREPLY;
 
-                dbg(NEIGHBOR_CHANNEL, "Sending Neighbor Ping Reply\n");
+                dbg(NEIGHBOR_CHANNEL, "Sending Neighbor Reply\n");
                 call Sender.send(*contents, contents->dest);
                 return msg;
             }
@@ -87,12 +90,10 @@ implementation
                 if (isNeighbor(contents->src) == TRUE)
                 {
                     int i;
-                    uint16_t size = 25; //call Neighborhood.size();
+                    uint16_t size = call Neighborhood.size();
 
-                    for (i = 0; i < size; i++)
-                    {
-                        if (contents->src == (call Neighborhood.get(i)).id)
-                        {
+                    for (i = 0; i < size; i++){ //update neighbor values
+                        if (contents->src == (call Neighborhood.get(i)).id){
                             neighbor *nodes = call Neighborhood.getPointer();
                             nodes[i].flag = FALSE;
                             return msg;
@@ -102,7 +103,6 @@ implementation
                 else
                 {
                     addNeighbor(contents->src);
-                    //dbg(NEIGHBOR_CHANNEL, "This packet is a neighbor of the node %d and it's node number is &d", TOS_NODE_ID,  );
                 }
             }
             else
@@ -111,7 +111,6 @@ implementation
                 return msg;
             }
         }
-
         dbg(NEIGHBOR_CHANNEL, "Unknown Packet Type %d\n", len);
         return msg;
     }
@@ -127,10 +126,10 @@ implementation
     }
 
     //Function to check if packet matches a packet in Neighborhood
-    bool isNeighbor(uint8_t nodeid)
+    bool isNeighbor(uint16_t nodeid)
     {
         uint16_t size = call Neighborhood.size();
-        uint8_t i;
+        uint16_t i;
         neighbor node;
         if (!call Neighborhood.isEmpty())
         {
@@ -146,7 +145,7 @@ implementation
 
     //Function to add packet to Neighborhood. If the list is full the last element is
     //removed and the new packet added. Does not check if a packet is already in the list.
-    error_t addNeighbor(uint8_t nodeid) //might want to implement this diffrently
+    error_t addNeighbor(uint16_t nodeid) //might want to implement this diffrently
     {
         //uint16_t size = call Neighborhood.size();
         neighbor node;
@@ -167,7 +166,7 @@ implementation
     void updateNeighbors()
     {
         uint16_t size = call Neighborhood.size();
-        uint8_t i;
+        uint16_t i;
         neighbor *nodes = call Neighborhood.getPointer();
 
         if (!call Neighborhood.isEmpty())
@@ -185,7 +184,7 @@ implementation
     void printNeighborhood()
     {
         uint16_t size = call Neighborhood.size();
-        uint8_t i;
+        uint16_t i;
         neighbor node;
 
         dbg(GENERAL_CHANNEL, "Node %d Neighbor List:\n", TOS_NODE_ID);
@@ -197,16 +196,14 @@ implementation
         }
     }
 
-    command uint8_t *NeighborDiscovery.getNeighbors()
+    command uint16_t *NeighborDiscovery.getNeighbors()
     {
         //First zero out neighbors array
-        uint8_t i, size = call Neighborhood.size();
+        uint16_t i, size = call Neighborhood.size();
         neighbor node;
 
-        for (i = 0; i < 19; i++)
-        {
+        for (i = 0; i < size; i++)
             neighbors[i] = 0;
-        }
 
         //Then populate based on NeighborList
         for (i = 0; i < size; i++)
@@ -217,4 +214,13 @@ implementation
         return neighbors;
     }
 
-} // for implementation
+    command uint16_t NeighborDiscovery.getNeighborhoodSize(){
+        return call Neighborhood.size();
+    }
+
+    command neighbor *NeighborDiscovery.getNeighborsPointer(){
+        return call Neighborhood.getPointer();
+    }
+
+
+}//for implementation

@@ -1,12 +1,10 @@
 //Author:Nathan Blais
 
 configuration FlooderC{
-	//Provides the SimpleSend interface in order to flood
 	provides interface Flooder;
 }
 
 implementation {
-	//Export the implemention of SimpleSend.send() to FlooderP
 	components FlooderP;	
 	Flooder = FlooderP.Flooder;
 	
@@ -23,6 +21,7 @@ implementation {
     components new ListC(pack, 20) as KnownPacketsList;
     FlooderP.KnownPacketsList -> KnownPacketsList;
 
+	//Wire the NeighborDiscovery interface used by FlooderP to the one provided by NeighborDiscoveryC()
 	components NeighborDiscoveryC;
     FlooderP.NeighborDiscovery -> NeighborDiscoveryC;
 }

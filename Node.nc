@@ -25,6 +25,8 @@ module Node{
    uses interface CommandHandler;
    //uses interface Boot;
    uses interface NeighborDiscovery;
+
+   uses interface DistanceVectorRouting;
 }
 
 implementation{
@@ -51,15 +53,54 @@ implementation{
          call AMControl.start();
       }
       call NeighborDiscovery.run();
+      call DistanceVectorRouting.run();
+
    }
 
    event void AMControl.stopDone(error_t err){}
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
-      dbg(GENERAL_CHANNEL, "Packet Received in Node\n");
+    //  dbg(GENERAL_CHANNEL, "Packet Received in Node\n");
       if(len==sizeof(pack)){
-         pack* myMsg=(pack*) payload;
-         dbg(GENERAL_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+         pack *contents = (pack *)payload;
+
+			if (contents->TTL == 0){ //Kill the packet if TTL is 0
+				//do nothing
+            	return msg;
+         }
+            //Check if the packet is meant for the current node
+			if (contents->dest == TOS_NODE_ID)
+			{ //Check the packet's protocol number
+				if (PROTOCOL_PING == contents->protocol)
+				{
+               dbg(GENERAL_CHANNEL, "Arrived at destination %d \n", TOS_NODE_ID);
+					dbg(GENERAL_CHANNEL, "Ping Message:%s\n", contents->payload);
+					makePack(&sendPackage, TOS_NODE_ID, contents->src, MAX_TTL, contents->seq, PROTOCOL_PINGREPLY, (uint8_t *)contents->payload, PACKET_MAX_PAYLOAD_SIZE);
+					dbg(GENERAL_CHANNEL, "Sending Ping Reply to %d\n \n", contents->src);
+					call Sender.send(sendPackage, call DistanceVectorRouting.GetNextHop(contents->src));
+				}
+				else if (PROTOCOL_PINGREPLY == contents->protocol)
+				{
+					dbg(GENERAL_CHANNEL, "Ping Reply Recived from %d\n", contents->src);
+					dbg(GENERAL_CHANNEL, "Package Payload: %s\n", contents->payload);
+				}
+				else
+					dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol\n");
+			}
+			else //the packet is not meant for the current node
+			{
+				contents-> TTL = (contents->TTL) - 1; //Reduce TTL
+				dbg(GENERAL_CHANNEL, "We're in Node %d \n \t\tRouting Packet- src:%d, dest %d, seq: %d, nexthop: %d, count: %d\n \n",TOS_NODE_ID, contents->src, contents->dest, contents->seq, call DistanceVectorRouting.GetNextHop(contents->dest), call DistanceVectorRouting.GetCost(contents->dest));
+				dbg(ROUTING_CHANNEL, "Packet is not ment for current node. Passing it on.\n");
+
+	         if (contents->protocol == PROTOCOL_PING || contents->protocol == PROTOCOL_PINGREPLY){
+               call Sender.send(*contents, call DistanceVectorRouting.GetNextHop(contents->dest));
+            }
+            else{
+               dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol\n");
+            }
+			}
+         //dbg(GENERAL_CHANNEL, "Package Payload: %s\n", myMsg->payload);
          return msg;
       }
       dbg(GENERAL_CHANNEL, "Unknown Packet Type %d\n", len);
@@ -68,18 +109,22 @@ implementation{
 
 
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
+      pack *contents = (pack *)payload;
       dbg(GENERAL_CHANNEL, "PING EVENT \n");
       makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, SEQ_NUM, PROTOCOL_PING, payload, PACKET_MAX_PAYLOAD_SIZE);
+      dbg(GENERAL_CHANNEL, "We're in Node: %d \n \t\tRouting Packet- src:%d, dest %d, seq: %d, nexthop: %d, count: %d\n \n", TOS_NODE_ID,TOS_NODE_ID, destination, SEQ_NUM, call DistanceVectorRouting.GetNextHop(destination), call DistanceVectorRouting.GetCost(destination));
       SEQ_NUM++;
       //call Sender.send(sendPackage, destination);
-      call Flooder.send(sendPackage, destination);
+      //call Flooder.send(sendPackage, destination);
+
+      call Sender.send(sendPackage, call DistanceVectorRouting.GetNextHop(destination));
    }
 
 
    
    event void CommandHandler.printNeighbors(){call NeighborDiscovery.print();}
 
-   event void CommandHandler.printRouteTable(){}
+   event void CommandHandler.printRouteTable(){call DistanceVectorRouting.print();}
 
    event void CommandHandler.printLinkState(){}
 

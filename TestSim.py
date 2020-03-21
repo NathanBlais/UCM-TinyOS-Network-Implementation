@@ -151,7 +151,8 @@ def main():
     s = TestSim();
     s.runTime(10);
     #s.loadTopo("example.topo");
-    s.loadTopo("long_line.topo");
+    #s.loadTopo("long_line.topo");
+    s.loadTopo("Project2Topo.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     #General
@@ -161,7 +162,7 @@ def main():
     #s.addChannel(s.FLOODING_CHANNEL);
     #s.addChannel(s.NEIGHBOR_CHANNEL); 
     #Project 2
-    s.addChannel(s.ROUTING_CHANNEL);
+    #s.addChannel(s.ROUTING_CHANNEL);
     #Project 3
     s.addChannel(s.TRANSPORT_CHANNEL);
     #Possibly add seperate server and client channels
@@ -173,16 +174,63 @@ def main():
 #Flags to choose which test to run#
 
 
+#####***DVR TEST***##### 
+
+    s.runTime(1);
+    #s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
+    s.runTime(150);
+    s.routeDMP(1);
+    s.runTime(1);
+    s.routeDMP(2);
+    s.runTime(1);
+    s.routeDMP(3);
+    s.runTime(1);
+    s.routeDMP(4);
+    s.runTime(1);
+    s.routeDMP(5);
+    s.runTime(1);
+    s.routeDMP(6);
+    s.runTime(1);
+    s.routeDMP(7);
+    s.runTime(1);
+    s.routeDMP(8);
+    s.runTime(1);
+    s.routeDMP(9);
+    s.runTime(1);
+    s.routeDMP(10);
+    s.runTime(1);
+    s.routeDMP(11);
+    s.runTime(1);
+    s.routeDMP(12);
+    s.runTime(1);
+    s.routeDMP(13);
+    s.runTime(1);
+    s.routeDMP(14);
+    s.runTime(1);
+    s.routeDMP(15);
+    s.runTime(1);
+    s.routeDMP(16);
+    s.runTime(1);
+    s.routeDMP(17);
+    s.runTime(1);
+    s.routeDMP(18);
+    s.runTime(1);
+    s.routeDMP(19);
+    s.runTime(120);
+    s.ping(2, 6, "Hi!");
+    s.runTime(100);
+
+
 #####***NEIGHBOR DISCOVERY TEST***##### 
-    s.runTime(50);
-    s.neighborDMP(1);
-    s.runTime(5);
-    s.neighborDMP(2);
-    s.runTime(5);
-    s.neighborDMP(3);
-    s.runTime(5);
-    s.neighborDMP(4);
-    s.runTime(10);
+    # s.runTime(50);
+    # s.neighborDMP(1);
+    # s.runTime(5);
+    # s.neighborDMP(2);
+    # s.runTime(5);
+    # s.neighborDMP(3);
+    # s.runTime(5);
+    # s.neighborDMP(4);
+    # s.runTime(10);
 
 
 
@@ -190,8 +238,11 @@ def main():
     # s.runTime(20);
     # s.ping(1, 2, "Hello, World");
     # s.runTime(10);
-    # s.ping(1, 6, "Hi!");
-    # s.runTime(50);
+    # s.ping(1, 17, "Hi!");
+    # s.runTime(5);
+    # s.runTime(1);
+    # s.routeDMP(17);
+    # s.runTime(100);
 
 
 
