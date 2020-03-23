@@ -50,7 +50,7 @@ module TransportP{
       dbg(TRANSPORT_CHANNEL,"Transport.socket() Called\n");
       if(call Connections.contains(0)) { //if there is room
         for(i=1; i <= call Connections.size(); i++){
-          if(call Connections.contains(i) == 0)
+          if(!(call Connections.contains(i)))
             return (socket_t) i;
         }
       }

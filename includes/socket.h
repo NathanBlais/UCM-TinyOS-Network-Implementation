@@ -52,15 +52,6 @@ typedef struct socket_store_t{
 
     // This is the sender portion.
     uint8_t sendBuff[SOCKET_BUFFER_SIZE];
-
-    // uint8_t  SND.UNA     // oldest unacknowledged sequence number
-    // uint8_t  SND.NXT    // next sequence number to be sent
-    // uint8_t  SND.WND    // send window
-    // uint8_t  SND.UP     // send urgent pointer
-    // uint8_t  SND.WL1    // segment sequence number used for last window update
-    // uint8_t  SND.WL2    // segment acknowledgment number used for last window update
-    // uint8_t  ISS        // initial send sequence number
-
     uint8_t lastWritten;    //sequence numbers allowed for new data transmission
     uint8_t lastAck;        //acknowledged sequence numbers
     uint8_t lastSent;       // SND.UNA - send unacknowledged
@@ -77,16 +68,8 @@ typedef struct socket_store_t{
         2 - sequence numbers allowed for new reception
         3 - future sequence numbers which are not yet allowed
 */
-
-
     // This is the receiver portion
     uint8_t rcvdBuff[SOCKET_BUFFER_SIZE];
-
-    //   RCV.NXT - receive next
-    //   RCV.WND - receive window
-    //   RCV.UP  - receive urgent pointer
-    //   IRS     - initial receive sequence number
-
     uint8_t lastRead;
     uint8_t lastRcvd;
     uint8_t nextExpected;
