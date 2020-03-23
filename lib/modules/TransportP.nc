@@ -21,9 +21,21 @@ module TransportP{
   
   //Uses the (DVR) interface to know where to forward packets.
   uses interface DistanceVectorRouting;
+
+  uses interface Hashmap<socket_store_t> as Connections; // hash table: list of connections
+
  }
 
  implementation{
+
+    // Globals
+
+    const socket_t NULLSocket = 0;
+
+
+    // Prototypes
+
+
 
    /**
     * Get a socket if there is one available.
@@ -33,7 +45,18 @@ module TransportP{
     *    associated with a socket. If you are unable to allocated
     *    a socket then return a NULL socket_t.
     */
-   command socket_t socket();
+   command socket_t socket(){
+      uint8_t i;
+      dbg(TRANSPORT_CHANNEL,"Transport.socket() Called\n");
+      if(call Connections.contains(0)) { //if there is room
+        for(i=1; i <= call Connections.size(); i++){
+          if(call Connections.contains(i) == 0)
+            return (socket_t) i;
+        }
+      }
+      dbg(TRANSPORT_CHANNEL,"Failed: No sockets are available\n");
+      return NULLSocket;
+   }
 
    /**
     * Bind a socket with an address.
@@ -47,7 +70,16 @@ module TransportP{
     * @return error_t - SUCCESS if you were able to bind this socket, FAIL
     *       if you were unable to bind.
     */
-   command error_t bind(socket_t fd, socket_addr_t *addr);
+   command error_t bind(socket_t fd, socket_addr_t *addr){
+
+
+      dbg(TRANSPORT_CHANNEL,"Transport.bind() Called\n");
+
+      //initialize the socket_store_t here or in a seperate function called here
+
+
+
+   }
 
    /**
     * Checks to see if there are socket connections to connect to and

@@ -18,13 +18,12 @@ implementation {
 	TransportP.Receiver -> Receiver;
     TransportP.AMPacket -> Receiver;
 
-	////Wire the List interface used by TransportP to the one provided by ListC()
-    //components new ListC(pack, 20) as KnownPacketsList;
-    //TransportP.KnownPacketsList -> KnownPacketsList;
-
 	//Wire the DistanceVectorRouting interface used by TransportP to the one provided by DistanceVectorRoutingC()
     components  DistanceVectorRoutingC;
     Node.DistanceVectorRouting ->  DistanceVectorRoutingC; 
+
+	components new HashmapC(socket_store_t, MAX_NUM_OF_SOCKETS) as Connections;
+    TransportP.Connections->Connections;
 
     //NOTE: wire timmers 
 }
