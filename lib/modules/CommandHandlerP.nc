@@ -68,14 +68,14 @@ implementation{
                 signal CommandHandler.printRouteTable();
                 break;
 
+            case CMD_TEST_SERVER:
+                dbg(COMMAND_CHANNEL, "Command Type: Server\n");
+                signal CommandHandler.setTestServer(buff[0]);
+                break;
+
             case CMD_TEST_CLIENT:
                 dbg(COMMAND_CHANNEL, "Command Type: Client\n");
                 signal CommandHandler.setTestClient();
-                break;
-
-            case CMD_TEST_SERVER:
-                dbg(COMMAND_CHANNEL, "Command Type: Client\n");
-                signal CommandHandler.setTestServer();
                 break;
 
             default:

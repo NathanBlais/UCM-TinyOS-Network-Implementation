@@ -35,14 +35,14 @@ typedef struct tcpHeader{
 	uint8_t Dest_Port;
 	uint8_t Seq_Num;		//Sequence Number	- which byte chunk is being sent
 	uint8_t Acknowledgment;		//ACK - next byte expected (seq + 1)
-	uint8_t Len; 
+	//uint8_t Len; 				//Data Offset
 	unsigned int Flags: 3;
 	uint8_t Advertised_Window;	// buffer size
 	//uint8_t Checksum; //optional
 	//uint8_t UrgPtr; //optional
 	//DATA <- NEED TO IMPLEMENT THIS
 
-}
+}tcpHeader;
 
 //Flags for TCP
 #define URG 0  //signifies that this segment contains urgent data.

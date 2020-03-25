@@ -29,8 +29,8 @@ typedef nx_struct socket_addr_t{
 // File descripter id. Each id is associated with a socket_store_t
 typedef uint8_t socket_t;
 
-// State of a socket. 
-typedef struct socket_store_t{
+
+typedef struct socket_store_t{ //(TCB) - Transmission Control Block
     uint8_t flag;
     enum socket_state state;
     socket_port_t src; //might not be nessisary if we use hashtable keys to represent this

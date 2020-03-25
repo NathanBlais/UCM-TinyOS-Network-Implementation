@@ -142,9 +142,9 @@ class TestSim:
         self.t.addChannel(channelName, out);
 
     # Added Generic Command
-    #
-    #
-    #
+    def cmdTestServer(self, address, port):
+        print 'Listening for Server connections..', address, port;
+        self.sendCMD(self.CMD_TEST_SERVER, address, chr(port));
 
 
 def main():
@@ -171,54 +171,26 @@ def main():
     s.addChannel(s.APPLICATION_CHANNEL);
 
 
-#Flags to choose which test to run#
-
 
 #####***DVR TEST***##### 
 
     s.runTime(1);
     #s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
     s.runTime(150);
-    s.routeDMP(1);
-    s.runTime(1);
-    s.routeDMP(2);
-    s.runTime(1);
-    s.routeDMP(3);
-    s.runTime(1);
-    s.routeDMP(4);
-    s.runTime(1);
-    s.routeDMP(5);
-    s.runTime(1);
-    s.routeDMP(6);
-    s.runTime(1);
-    s.routeDMP(7);
-    s.runTime(1);
-    s.routeDMP(8);
-    s.runTime(1);
-    s.routeDMP(9);
-    s.runTime(1);
-    s.routeDMP(10);
-    s.runTime(1);
-    s.routeDMP(11);
-    s.runTime(1);
-    s.routeDMP(12);
-    s.runTime(1);
-    s.routeDMP(13);
-    s.runTime(1);
-    s.routeDMP(14);
-    s.runTime(1);
-    s.routeDMP(15);
-    s.runTime(1);
-    s.routeDMP(16);
-    s.runTime(1);
-    s.routeDMP(17);
-    s.runTime(1);
-    s.routeDMP(18);
-    s.runTime(1);
-    s.routeDMP(19);
+
+    for i in range(1, 19):
+        s.routeDMP(i);
+        s.runTime(1);
     s.runTime(120);
     s.ping(2, 6, "Hi!");
     s.runTime(100);
+
+
+
+    #####***TCP Test***##### 
+
+    s.cmdTestServer(6,10); #[adress] [port]
+    s.runTime(40);
 
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
