@@ -148,7 +148,17 @@ module TransportP{
     * @return uint16_t - return SUCCESS if you are able to handle this
     *    packet or FAIL if there are errors.
     */
-   //command error_t Transport.receive(pack* package);
+   command error_t Transport.receive(pack* package){
+      pack* myMsg=(pack*) package;
+      tcpHeader* mySegment = (tcpHeader*) myMsg->payload;
+      socket_store_t * curConection = call Connections
+
+
+
+     switch (mySegment->state) {
+    
+     case TCP_LAST_ACK:
+   }
 
    /**
     * Read from the socket and write this data to the buffer. This data

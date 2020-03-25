@@ -11,9 +11,16 @@ enum{
 enum socket_state{
     CLOSED,
     LISTEN,
-    ESTABLISHED,
     SYN_SENT,
     SYN_RCVD,
+    ESTABLISHED,
+    CLOSE_WAIT,
+    LAST_ACK,
+    FIN_WAIT_1,
+    FIN_WAIT_2,
+    CLOSING,
+    TIME_WAIT,
+
 };
 
 typedef nx_uint8_t nx_socket_port_t;
@@ -32,8 +39,12 @@ typedef uint8_t socket_t;
 
 typedef struct socket_store_t{ //(TCB) - Transmission Control Block
     uint8_t flag;
+
+    /* current connection state */
     enum socket_state state;
-    socket_port_t src; //might not be nessisary if we use hashtable keys to represent this
+
+    /* local and remote endpoints */
+    socket_port_t src;
     socket_addr_t dest;
 
 /*
@@ -52,9 +63,9 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 
     // This is the sender portion.
     uint8_t sendBuff[SOCKET_BUFFER_SIZE];
-    uint8_t lastWritten;    //sequence numbers allowed for new data transmission
+    uint8_t lastWritten;    //packet sequence number allowed for new data transmission
+    uint8_t lastSent;       // SND.UNA - last sent data that is not acknowledged yet
     uint8_t lastAck;        //acknowledged sequence numbers
-    uint8_t lastSent;       // SND.UNA - send unacknowledged
 
 /*
     Receive Sequence Space
