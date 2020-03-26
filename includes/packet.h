@@ -13,8 +13,11 @@ enum{
 	PACKET_HEADER_LENGTH = 8,
 //	PACKET_HEADER_LENGTH = sizeof(pack),
 	PACKET_MAX_PAYLOAD_SIZE = 28 - PACKET_HEADER_LENGTH,
+	TCP_PACKET_MAX_PAYLOAD_SIZE = PACKET_MAX_PAYLOAD_SIZE - 7,
 	//MAX_TTL = 15
 	MAX_TTL = 20
+
+	
 };
 
 enum{
@@ -31,6 +34,28 @@ typedef nx_struct pack{
 	nx_uint8_t protocol;
 	nx_uint8_t payload[PACKET_MAX_PAYLOAD_SIZE];
 }pack;
+
+typedef struct tcpHeader{
+	uint8_t Src_Port;
+	uint8_t Dest_Port;
+	uint8_t Seq_Num;		//Sequence Number	- which byte chunk is being sent
+	uint8_t Acknowledgment;		//ACK - next byte expected (seq + 1)
+	uint8_t Len; 				//Data Offset
+	unsigned int Flags: 3;
+	uint8_t Advertised_Window;	// buffer size
+	//uint8_t Checksum; //optional
+	//uint8_t UrgPtr; //optional
+	uint8_t payload[TCP_PACKET_MAX_PAYLOAD_SIZE];	// DATA
+
+}tcpHeader;
+
+//Flags for TCP
+#define URG 0  //signifies that this segment contains urgent data.
+#define ACK 1  //is set any time the Acknowledgment field is valid, implying that the receiver should pay attention to it.
+#define PUSH 2 //signifies that the sender invoked the push operation, which indicates to the receiving side of TCP that it should notify the receiving process of this fact.
+#define RESET 3 //signifies that the receiver has become confused—for example, because it received a segment it did not expect to receive—and so wants to abort the connection.
+#define SYN 4  //-never carries payload data
+#define FIN 5  //-never carries payload data
 
 /*
  * logPack

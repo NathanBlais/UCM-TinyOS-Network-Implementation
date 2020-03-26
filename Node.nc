@@ -88,8 +88,8 @@ implementation{
 		}
 	   else if (PROTOCOL_PINGREPLY == contents->protocol)
 			dbg(GENERAL_CHANNEL, "Package Payload: %s\n", contents->payload);
-      //else if (PROTOCOL_TCP == contents->protocol)
-         //call Transport.receive(contents);
+      else if (PROTOCOL_TCP == contents->protocol)
+         call Transport.receive(contents);
 		else
 			dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol\n");
 
@@ -136,7 +136,25 @@ implementation{
       //Set off timer to close it after an amount of time
    }
 
-   event void CommandHandler.setTestClient(){}
+   event void CommandHandler.setTestClient(uint8_t srcPort, uint8_t destination, uint8_t destPort, uint8_t *payload){
+      socket_addr_t destAddr;
+      destAddr.addr = destination; //filled with usless info
+      destAddr.port = destPort;    //filled with usless info
+      if(call Transport.bind(srcPort, &destAddr))
+         return;
+      if(call Transport.connect(srcPort, &destAddr))
+         return;
+
+      //add the payload to a que to be cut up and packaged to be sent after connection
+
+      //Set off timer to close or resend it after an amount of time
+   }
+
+   event void CommandHandler.cmdClientClose(uint8_t address, uint8_t srcPort, uint8_t destination, uint8_t destPort){
+
+      
+   }
+
 
    event void CommandHandler.setAppServer(){}
 

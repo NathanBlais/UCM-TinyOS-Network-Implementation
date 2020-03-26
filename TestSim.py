@@ -146,13 +146,22 @@ class TestSim:
         print 'Listening for Server connections..', address, port;
         self.sendCMD(self.CMD_TEST_SERVER, address, chr(port));
 
+    def cmdTestClient(self, address, sourcePort, dest, destPort, msg):
+        print '\t\tNode',address,':',sourcePort,'wants to connect to',dest,':',destPort;
+        self.sendCMD(self.CMD_TEST_CLIENT, address, "{0}{1}{2}{3}".format(chr(sourcePort), chr(dest), chr(destPort), msg));
+                            #[selfAdress] [srcPort] [dest] [destPort] [transfer]
+
+    def cmdClientClose(self, address, sourcePort, dest, destPort,):
+        print 'Client:',address,'Port:',sourcePort,'wants to close Server/Port:' , dest, destPort;
+        self.sendCMD(self.CMD_CLIENT_CLOSE, address, "{0}{1}{2}{3}".format(chr(address), chr(sourcePort), chr(dest), chr(destPort)));
+                            #[client adress] [srcPort] [dest] [destPort]
 
 def main():
     s = TestSim();
     s.runTime(10);
     #s.loadTopo("example.topo");
-    #s.loadTopo("long_line.topo");
-    s.loadTopo("Project2Topo.topo");
+    s.loadTopo("long_line.topo");
+    #s.loadTopo("Project2Topo.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     #General
@@ -182,8 +191,8 @@ def main():
         s.routeDMP(i);
         s.runTime(1);
     s.runTime(120);
-    s.ping(2, 6, "Hi!");
-    s.runTime(100);
+    #s.ping(2, 6, "Hi!");
+    #s.runTime(100);
 
 
 
@@ -191,7 +200,9 @@ def main():
 
     s.cmdTestServer(6,10); #[adress] [port]
     s.runTime(40);
-
+    s.cmdTestClient(1,8,6,10, "1234 12"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
+    s.runTime(40);
+    #s.cmdClientClose(2,80,3,10); #[client adress] [srcPort] [dest] [destPort]
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);

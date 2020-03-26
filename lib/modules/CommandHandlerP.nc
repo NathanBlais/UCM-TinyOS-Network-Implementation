@@ -75,7 +75,16 @@ implementation{
 
             case CMD_TEST_CLIENT:
                 dbg(COMMAND_CHANNEL, "Command Type: Client\n");
-                signal CommandHandler.setTestClient();
+                signal CommandHandler.setTestClient(buff[0], buff[1], buff[2], &buff[3]);
+                break;
+
+            case CMD_CLIENT_CLOSE:
+                dbg(COMMAND_CHANNEL, "Command Type: Client Close\n");
+                signal CommandHandler.cmdClientClose(buff[0], buff[1], buff[2], buff[3]);
+                break;
+
+            case CMD_KILL:
+                dbg(COMMAND_CHANNEL, "Command Type: Kill (Not Implemented)\n");
                 break;
 
             default:

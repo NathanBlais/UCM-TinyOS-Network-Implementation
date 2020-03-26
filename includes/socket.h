@@ -20,7 +20,6 @@ enum socket_state{
     FIN_WAIT_2,
     CLOSING,
     TIME_WAIT,
-
 };
 
 typedef nx_uint8_t nx_socket_port_t;

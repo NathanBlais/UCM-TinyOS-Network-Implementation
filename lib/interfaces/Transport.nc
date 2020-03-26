@@ -79,7 +79,7 @@ interface Transport{
     * @return uint16_t - return SUCCESS if you are able to handle this
     *    packet or FAIL if there are errors.
     */
-//   command error_t receive(pack* package);
+   command error_t receive(pack* package);
 
    /**
     * Read from the socket and write this data to the buffer. This data
@@ -110,7 +110,7 @@ interface Transport{
     * @return socket_t - returns SUCCESS if you are able to attempt
     *    a connection with the fd passed, else return FAIL.
     */
-//   command error_t connect(socket_t fd, socket_addr_t * addr);
+   command error_t connect(socket_t fd, socket_addr_t * addr);
 
    /**
     * Closes the socket.
