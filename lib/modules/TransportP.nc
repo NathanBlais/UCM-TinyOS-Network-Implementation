@@ -134,7 +134,6 @@ module TransportP{
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         nextExpected = 1;
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-<<<<<<< HEAD
                     mySocket->dest.port,
                     mySocket->src,                    //uint8_t des //not sure
                     SYN,                           //uint8_t flag
