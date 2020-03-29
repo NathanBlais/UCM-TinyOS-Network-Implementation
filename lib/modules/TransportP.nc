@@ -134,6 +134,7 @@ module TransportP{
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         nextExpected = 1;
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+<<<<<<< HEAD
                     mySocket->dest.port,
                     mySocket->src,                    //uint8_t des //not sure
                     SYN,                           //uint8_t flag
@@ -208,18 +209,20 @@ module TransportP{
 
       //put some checks here
       //check if the ack of the packet is the expected ack
-
+      
+      dbg(TRANSPORT_CHANNEL, "STATE: %d \n",curConection->state);
 
       switch (curConection->state) { 
       case CLOSED: //Don't know what do do with it yet
         break;  
       case LISTEN:
+        dbg(TRANSPORT_CHANNEL, "Transport Called Listen\n");
         if(mySegment->Flags == URG){}
         else if(mySegment->Flags == ACK){} //DONT USE
         else if(mySegment->Flags == PUSH){} //I DONT KNOW
         else if(mySegment->Flags == RESET){}
         else if(mySegment->Flags == SYN){
-          //call Transport.accept();
+          call Transport.accept(curConection->src, myMsg);
         } //<- the main one
         else if(mySegment->Flags == FIN){} //I DONT KNOW
         else{}//Wrong info
