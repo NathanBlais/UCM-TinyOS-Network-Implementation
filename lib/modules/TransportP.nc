@@ -204,23 +204,67 @@ module TransportP{
       tcpHeader* mySegment = (tcpHeader*) myMsg->payload;
       socket_store_t * curConection = call Connections.getPointer(mySegment->Dest_Port);
 
+      dbg(TRANSPORT_CHANNEL, "Transport.receive() Called\n");
+
+      //put some checks here
+      //check if the ack of the packet is the expected ack
+
+
       switch (curConection->state) { 
       case CLOSED: //Don't know what do do with it yet
         break;  
       case LISTEN:
         if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){} //DONT USE
-        if(mySegment->Flags == PUSH){} //I DONT KNOW
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){} //<- the main one
-        if(mySegment->Flags == FIN){} //I DONT KNOW
+        else if(mySegment->Flags == ACK){} //DONT USE
+        else if(mySegment->Flags == PUSH){} //I DONT KNOW
+        else if(mySegment->Flags == RESET){}
+        else if(mySegment->Flags == SYN){
+          //call Transport.accept();
+        } //<- the main one
+        else if(mySegment->Flags == FIN){} //I DONT KNOW
+        else{}//Wrong info
         break;                
       case SYN_SENT:
+            //put some checks here
+        if(mySegment->Flags & ( SYN | ACK )) {
+          //stop timmer
+            //change the state of the socket to established
+          curConection->state = ESTABLISHED;
+          curConection->lastRcvd = mySegment->Seq_Num;
+          curConection->nextExpected = 1;
+          curConection->effectiveWindow = mySegment->Advertised_Window;
+            //curConection.RTT = call LocalTime.get() - tempSocket.RTT + 10;
+
+
+        //Make the packet to send
+        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySegment->Dest_Port,             //uint8_t src
+                    mySegment->Src_Port,    //??                //uint8_t des
+                    ACK,                           //uint8_t flag
+                    1,                             //uint8_t seq
+                    1, /*socketHolder->nextExpected*///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+
+        //save a copy of the packet to posibly be sent by a timmer
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
+
+          //optionally do some RTT stuff here
+          
+          //send out inital ack
+
+          //set timmer
+
+          //call to start sending packets from que.
+
+
+        }
         if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
         if(mySegment->Flags == PUSH){}
         if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
         if(mySegment->Flags == FIN){}
         break; 
       case SYN_RCVD:
