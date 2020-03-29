@@ -121,6 +121,59 @@ module TransportP{
     */
    //command socket_t Transport.accept(socket_t fd);
 
+
+     command socket_t Transport.accept(socket_t fd, pack* myPacket){
+        socket_store_t * mySocket;
+        uint8_t lastRcvd;
+        uint8_t nextExpected;
+        tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
+        mySocket = call Connections.getPointer(fd);
+        switch ( mySocket-> state)
+        {
+        case LISTEN:
+        lastRcvd = myTcpHeader->Seq_Num; // do i need this?
+        nextExpected = 1;
+        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySocket-> src,
+                    mySocket->dest.port,                    //uint8_t des //not sure
+                    SYN_RCVD,                           //uint8_t flag
+                    lastRcvd,                             //uint8_t seq
+                    nextExpected, //socketHolder->nextExpected///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
+         //call timer
+        //send packet
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->src));
+        // i need to get the new socket......but how?
+        break;
+        case SYN_SENT:
+        break;
+        case SYN_RCVD:
+        break;
+        case ESTABLISHED:
+        break;
+        case CLOSE_WAIT:
+        break;
+        case LAST_ACK:
+        break;
+        case FIN_WAIT_1:
+        break;
+        case FIN_WAIT_2: 
+        break;
+        case CLOSING:
+        break;
+        case TIME_WAIT:
+        break;
+        default:
+        } 
+        //ask for socket, bind, listen again?
+      
+   }
+
+
    /**
     * Write to the socket from a buffer. This data will eventually be
     * transmitted through your TCP implimentation.
