@@ -132,6 +132,7 @@ module TransportP{
         switch ( mySocket-> state)
         {
         case LISTEN:
+        dbg(TRANSPORT_CHANNEL, "I'm inside LISTEN case in accept \n");
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         nextExpected = 1;
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
