@@ -134,9 +134,9 @@ module TransportP{
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         nextExpected = 1;
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySocket-> src,
-                    mySocket->dest.port,                    //uint8_t des //not sure
-                    SYN_RCVD,                           //uint8_t flag
+                    mySocket->dest.port,
+                    mySocket->src,                    //uint8_t des //not sure
+                    SYN,                           //uint8_t flag
                     lastRcvd,                             //uint8_t seq
                     nextExpected, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
@@ -146,7 +146,7 @@ module TransportP{
         makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->src));
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myPacket->src));
         // i need to get the new socket......but how?
         break;
         case SYN_SENT:
