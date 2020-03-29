@@ -134,9 +134,9 @@ module TransportP{
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         nextExpected = 1;
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySocket-> src,
+                    mySocket->src,
                     mySocket->dest.port,                    //uint8_t des //not sure
-                    SYN_RCVD,                           //uint8_t flag
+                    SYN,                           //uint8_t flag
                     lastRcvd,                             //uint8_t seq
                     nextExpected, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
@@ -146,7 +146,7 @@ module TransportP{
         makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->src));
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myPacket->src));
         // i need to get the new socket......but how?
         break;
         case SYN_SENT:
@@ -208,18 +208,20 @@ module TransportP{
 
       //put some checks here
       //check if the ack of the packet is the expected ack
-
+      
+      dbg(TRANSPORT_CHANNEL, "STATE: %d \n",curConection->state);
 
       switch (curConection->state) { 
       case CLOSED: //Don't know what do do with it yet
         break;  
       case LISTEN:
+        dbg(TRANSPORT_CHANNEL, "Transport Called Listen\n");
         if(mySegment->Flags == URG){}
         else if(mySegment->Flags == ACK){} //DONT USE
         else if(mySegment->Flags == PUSH){} //I DONT KNOW
         else if(mySegment->Flags == RESET){}
         else if(mySegment->Flags == SYN){
-          //call Transport.accept();
+          call Transport.accept(curConection->src, myMsg);
         } //<- the main one
         else if(mySegment->Flags == FIN){} //I DONT KNOW
         else{}//Wrong info
