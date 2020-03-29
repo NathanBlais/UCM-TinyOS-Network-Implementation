@@ -128,14 +128,15 @@ module TransportP{
         uint8_t nextExpected;
         tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
         mySocket = call Connections.getPointer(fd);
+        dbg(TRANSPORT_CHANNEL, "STATE: %d in accept \n",mySocket->state);
         switch ( mySocket-> state)
         {
         case LISTEN:
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         nextExpected = 1;
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySocket->dest.port,
-                    mySocket->src,                    //uint8_t des //not sure
+                    mySocket->src,
+                    mySocket->dest.port,                    //uint8_t des //not sure
                     SYN,                           //uint8_t flag
                     lastRcvd,                             //uint8_t seq
                     nextExpected, //socketHolder->nextExpected///uint8_t ack
