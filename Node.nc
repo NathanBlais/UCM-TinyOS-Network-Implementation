@@ -141,12 +141,21 @@ implementation{
 
    event void CommandHandler.setTestClient(uint8_t srcPort, uint8_t destination, uint8_t destPort, uint8_t *payload){
       socket_addr_t destAddr;
+      uint8_t i, AmountWritten;
       destAddr.addr = destination; //filled with usless info
       destAddr.port = destPort;    //filled with usless info
       if(call Transport.bind(srcPort, &destAddr))
          return;
       if(call Transport.connect(srcPort, &destAddr))
          return;
+
+      //save the value here into a holder to read for bugtesting
+
+      for(i=0; payload[i] != '\0'; i++ ){}
+
+      dbg(TRANSPORT_CHANNEL, "sizeof(payload): %d\n", i);
+
+      AmountWritten = call Transport.write(srcPort,payload,i);
 
       //add the payload to a que to be cut up and packaged to be sent after connection
 

@@ -24,6 +24,9 @@ module TransportP{
 
   uses interface Hashmap<socket_store_t> as Connections; // hash table: list of connections
 
+  //uses interface Timer<TMilli> as sendPacketTimer;
+  uses interface Timer<TMilli> as sendDataTimer;
+
  }
 
  implementation{
@@ -201,7 +204,47 @@ module TransportP{
     * @return uint16_t - return the amount of data you are able to write
     *    from the pass buffer. This may be shorter then bufflen
     */
-   //command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen);
+   command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen){
+      socket_store_t * curSocket = call Connections.getPointer(fd);
+      uint8_t written;
+
+
+    dbg(TRANSPORT_CHANNEL,"Transport.write() Called\n");
+//SOCKET_BUFFER_SIZE
+    if (buff == NULL || bufflen < 1){
+      return 0;
+    }
+
+    //NOTE: this will not work if you try to write too much information back to back
+    //for that we need to get the amount of info already on the buffer and make that the
+    // max amount you can write instead.
+    if (bufflen > SOCKET_BUFFER_SIZE){
+      written = SOCKET_BUFFER_SIZE - bufflen;
+    }
+    else{
+      written = bufflen;
+    }
+
+
+    memcpy((curSocket->sendBuff), buff, written);
+
+    dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", curSocket->sendBuff);
+
+     // call a sender timmer
+     //    call sendDataTimer.startPeriodic(2 * tempSocket.RTT);
+
+
+    return written;
+   }
+
+    event void sendDataTimer.fired(){
+
+       dbg(TRANSPORT_CHANNEL," ATTEMPTING TO SEND DATA\n");
+
+
+
+    }
+
 
    /**
     * This will pass the packet so you can handle it internally. 
@@ -218,7 +261,16 @@ module TransportP{
 
       dbg(TRANSPORT_CHANNEL, "Transport.receive() Called\n");
 
+
+      if(curConection->nextExpected != mySegment->Seq_Num){
+        dbg(TRANSPORT_CHANNEL, "Recived packet with unexpected SEQ #\n");
+        return FAIL;
+
+      }
+
       //put some checks here
+
+
       //check if the ack of the packet is the expected ack
       
       dbg(TRANSPORT_CHANNEL, "STATE: %d \n",curConection->state);
@@ -234,9 +286,11 @@ module TransportP{
         else if(mySegment->Flags == RESET){}
         else if(mySegment->Flags == SYN){
           call Transport.accept(curConection->src, myMsg);
+          return SUCCESS;
         } //<- the main one
         else if(mySegment->Flags == FIN){} //I DONT KNOW
         else{}//Wrong info
+        
         break;                
       case SYN_SENT:
             //put some checks here
@@ -265,7 +319,7 @@ module TransportP{
 
         //save a copy of the packet to posibly be sent by a timmer
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
-
+        return SUCCESS;
           //optionally do some RTT stuff here
           
           //send out inital ack
@@ -282,11 +336,36 @@ module TransportP{
         if(mySegment->Flags == FIN){}
         break; 
       case SYN_RCVD:
+                      //put some checks here
+        if(mySegment->Flags & ( SYN | ACK )) {
+          //stop timmer
+          //change the state of the socket to established
+          curConection->state = ESTABLISHED;
+
+          curConection->lastAck = 1;
+          curConection->lastRcvd = mySegment->Seq_Num;
+          curConection->nextExpected = 0;
+
+          //Make the packet to send
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySegment->Dest_Port,             //uint8_t src
+                    mySegment->Src_Port,    //??                //uint8_t des
+                    ACK,                           //uint8_t flag
+                    1,                             //uint8_t seq
+                    1, /*socketHolder->nextExpected*///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+
+        //save a copy of the packet to posibly be sent by a timmer
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
+        return SUCCESS;
+        }
         if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
         if(mySegment->Flags == PUSH){}
         if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
         if(mySegment->Flags == FIN){}
         break; 
       case ESTABLISHED:
@@ -370,18 +449,6 @@ module TransportP{
     */
    //command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen);
 
-   /**
-    * Attempts a connection to an address.
-    * @param
-    *    socket_t fd: file descriptor that is associated with the socket
-    *       that you are attempting a connection with. 
-    * @param 
-    *    socket_addr_t *addr: the destination address and port where
-    *       you will atempt a connection.
-    * @side Client
-    * @return socket_t - returns SUCCESS if you are able to attempt
-    *    a connection with the fd passed, else return FAIL.
-    */
   command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
     //This is set up for stop and wait 
     socket_store_t * socketHolder ;
@@ -497,6 +564,8 @@ module TransportP{
     Package->protocol = PROTOCOL_TCP;
     memcpy(Package->payload, myTCPpack, length);
   }
+
+
 
 
 }
