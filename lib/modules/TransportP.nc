@@ -129,18 +129,28 @@ module TransportP{
         tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
         mySocket = call Connections.getPointer(fd);
         dbg(TRANSPORT_CHANNEL, "STATE: %d in accept \n",mySocket->state);
+        dbg(TRANSPORT_CHANNEL, "myPacket->src is %d \n", mySocket->src);
         switch ( mySocket-> state)
         {
         case LISTEN:
         dbg(TRANSPORT_CHANNEL, "I'm inside LISTEN case in accept \n");
         lastRcvd = myTcpHeader->Seq_Num; // do i need this?
-        nextExpected = 1;
+        
+        mySocket->state = SYN_RCVD;
+
+        mySocket->dest.port= myTcpHeader->Src_Port;
+        mySocket->dest.addr= myPacket->src;
+        mySocket->nextExpected = 1;
+        //mySocket
+        //nextExpected = 1;
+        //mySocket->src =
+        
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
                     mySocket->src,
                     mySocket->dest.port,                    //uint8_t des //not sure
                     SYN,                           //uint8_t flag
                     lastRcvd,                             //uint8_t seq
-                    nextExpected, //socketHolder->nextExpected///uint8_t ack
+                    lastRcvd, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
                     1,                             //uint8_t advertised_window
                     "",                            //uint8_t* payload
@@ -148,7 +158,7 @@ module TransportP{
         makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myPacket->src));
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(5));
         // i need to get the new socket......but how?
         break;
         case SYN_SENT:
@@ -480,7 +490,7 @@ module TransportP{
   }
 
   void makeIPpack(pack *Package, tcpHeader  *myTCPpack, socket_store_t *sock, uint8_t length){
-    Package->src = TOS_NODE_ID;
+    Package->src = (uint8_t)TOS_NODE_ID;
     Package->dest = sock->dest.addr;
     Package->TTL = MAX_TTL;
     Package->seq = sock->lastSent; //finish this
