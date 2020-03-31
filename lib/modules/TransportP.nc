@@ -158,7 +158,7 @@ module TransportP{
         makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(5));
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myPacket->src));
         // i need to get the new socket......but how?
         break;
         case SYN_SENT:
@@ -299,7 +299,13 @@ module TransportP{
         break; 
       case CLOSE_WAIT:
         if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
+        if(mySegment->Flags == ACK){
+//------------------------------------------------------------------------------------------------------------------------
+        curConection-> state = FIN_WAIT_2; // set up a timer? if there is nothing to send go! still sending stuff, stay in this place. change it once it's done sending
+        break;
+//-------------------------------------------------------------------------------------------------------------------------
+
+        }
         if(mySegment->Flags == PUSH){}
         if(mySegment->Flags == RESET){}
         if(mySegment->Flags == SYN){}
@@ -307,11 +313,36 @@ module TransportP{
         break; 
       case LAST_ACK:
         if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
+        if(mySegment->Flags == ACK){
+
+          curConection->state=CLOSED;
+
+        }
         if(mySegment->Flags == PUSH){}
         if(mySegment->Flags == RESET){}
         if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
+        if(mySegment->Flags == FIN){
+
+        curConection-> state = LAST_ACK;
+                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    curConection->src,
+                    curConection->dest.port,                    //uint8_t des //not sure
+                    ACK,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
+         //call timer
+        //send packet
+        //edit sender
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
+        curConection->state = TIME_WAIT;
+        //timer
+        curConection-> state = CLOSED;
+        }
         break; 
       case FIN_WAIT_1:
         if(mySegment->Flags == URG){}
@@ -319,7 +350,26 @@ module TransportP{
         if(mySegment->Flags == PUSH){}
         if(mySegment->Flags == RESET){}
         if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
+        if(mySegment->Flags == FIN){
+
+//---------------------------------------------------------------------------------------------------------------------
+        curConection-> state = CLOSE_WAIT;
+                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    curConection->src,
+                    curConection->dest.port,                    //uint8_t des //not sure
+                    ACK,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
+        //timer?
+        call Transport.close(curConection->src); // state in curConnection is CLOSE_WAIT
+ //----------------------------------------------------------------------------------------------------------------------------------      
+        }
         break; 
       case FIN_WAIT_2:
         if(mySegment->Flags == URG){}
@@ -447,7 +497,91 @@ module TransportP{
     * @return socket_t - returns SUCCESS if you are able to attempt
     *    a closure with the fd passed, else return FAIL.
     */
-   //command error_t Transport.close(socket_t fd);
+   command error_t Transport.close(socket_t fd)
+   {
+      socket_store_t * mySocket;
+      //tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
+      
+      if (!(call Connections.contains(fd)))
+      {
+      return FAIL;
+      }
+      else{
+        mySocket = call Connections.getPointer(fd);
+
+        switch (mySocket->state){
+        
+        case CLOSED:
+        dbg(TRANSPORT_CHANNEL, "Already closed \n");
+        return FAIL;
+        break;
+        
+        case LISTEN: //nothing
+        case SYN_SENT: //nothing
+        case SYN_RCVD: //nothing
+        case ESTABLISHED: //good
+        //APPPARANTLY not used here
+        mySocket->state = FIN_WAIT_1;
+       // mySocket->dest.port= myTcpHeader->Src_Port; //ask if necessary
+       // mySocket->dest.addr= myPacket->src; //ask if necessary
+        
+                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySocket->src,
+                    mySocket->dest.port,                    //uint8_t des //not sure
+                    FIN,                           //uint8_t flag
+                    1,                             //uint8_t seq
+                    1, //socketHolder->nextExpected///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
+         //call timer
+        //send packet
+        //edit sender
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->dest.addr));
+        
+        return SUCCESS;
+        break;
+        
+        case CLOSE_WAIT: //changes wait to FIN WAIT 2 flag fin
+                    mySocket-> state = LAST_ACK;
+
+                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySocket->src,
+                    mySocket->dest.port,                    //uint8_t des //not sure
+                    FIN,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
+         //call timer
+        //send packet
+        //edit sender
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->dest.addr));
+
+        return SUCCESS;
+        break;
+        //------------------------------------------------------------------------------------------------
+        case LAST_ACK:
+        case FIN_WAIT_1:         
+        case FIN_WAIT_2: //flag fin, state fin_wait_2
+        case CLOSING:
+        case TIME_WAIT:
+        default:
+        dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", mySocket->state);
+          return FAIL;
+          break;
+
+
+      }
+    }
+
+
+   }
 
    /**
     * A hard close, which is not graceful. This portion is optional.

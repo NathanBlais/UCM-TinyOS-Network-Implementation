@@ -201,7 +201,7 @@ def main():
     s.cmdTestServer(6,1); #[adress] [port]
     s.runTime(40);
     s.cmdTestClient(1,1,6,1, "1234 12"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    s.runTime(80);
+    s.runTime(120);
     #s.cmdClientClose(2,80,3,10); #[client adress] [srcPort] [dest] [destPort]
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
