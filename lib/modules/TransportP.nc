@@ -678,81 +678,81 @@ module TransportP{
 
   void sendPacketDone(error_t err){
     if(err == SUCCESS){
-      socket_store_t * socketHolder;
+      // socket_store_t * socketHolder;
 
-      uint8_t buffSize, sendSize, TCPflag, j, i;
-      uint8_t size = call Connections.size();
-      uint32_t * keys = call Connections.getKeys();
+      // uint8_t buffSize, sendSize, TCPflag, j, i;
+      // uint8_t size = call Connections.size();
+      // uint32_t * keys = call Connections.getKeys();
 
-      dbg(TRANSPORT_CHANNEL," ATTEMPTING TO RE-SEND DATA\n");
-      for(i=0;i<size;i++){
-        socketHolder = call Connections.getPointer(keys[i]);
-        dbg(TRANSPORT_CHANNEL,"keys[i]: %d\n", keys[i]);
-        dbg(TRANSPORT_CHANNEL," How many times in the loop: %d\n", i);
+      // dbg(TRANSPORT_CHANNEL," ATTEMPTING TO RE-SEND DATA\n");
+      // for(i=0;i<size;i++){
+      //   socketHolder = call Connections.getPointer(keys[i]);
+      //   dbg(TRANSPORT_CHANNEL,"keys[i]: %d\n", keys[i]);
+      //   dbg(TRANSPORT_CHANNEL," How many times in the loop: %d\n", i);
 
-        dbg(TRANSPORT_CHANNEL,"socketHolder->lastSent: %d | socketHolder->lastAck %d\n",socketHolder->lastSent,socketHolder->lastAck );
+      //   dbg(TRANSPORT_CHANNEL,"socketHolder->lastSent: %d | socketHolder->lastAck %d\n",socketHolder->lastSent,socketHolder->lastAck );
         
-        dbg(TRANSPORT_CHANNEL,"socketHolder->sendBuff %s\n",socketHolder->sendBuff );
+      //   dbg(TRANSPORT_CHANNEL,"socketHolder->sendBuff %s\n",socketHolder->sendBuff );
 
 
-        if(socketHolder->state == ESTABLISHED &&
-          socketHolder->lastSent == socketHolder->lastAck &&
-          socketHolder->sendBuff != '\0')
-          { //if true send data
-                dbg(TRANSPORT_CHANNEL," Does it enter here?\n");
-          for(buffSize=0; socketHolder->sendBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
-          if(buffSize > TCP_PACKET_MAX_PAYLOAD_SIZE){//if size of buffer is > TCP_PACKET_MAX_PAYLOAD_SIZE
-            sendSize = TCP_PACKET_MAX_PAYLOAD_SIZE;
-            TCPflag = ACK;
-          }  
-          else { //send normaly with PUSH flag <- let it know it is the end of the data send
-            sendSize = buffSize;
-            TCPflag = PUSH;
-          }
-          //edit socket for correct data
+      //   if(socketHolder->state == ESTABLISHED &&
+      //     socketHolder->lastSent == socketHolder->lastAck &&
+      //     socketHolder->sendBuff != '\0')
+      //     { //if true send data
+      //           dbg(TRANSPORT_CHANNEL," Does it enter here?\n");
+      //     for(buffSize=0; socketHolder->sendBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
+      //     if(buffSize > TCP_PACKET_MAX_PAYLOAD_SIZE){//if size of buffer is > TCP_PACKET_MAX_PAYLOAD_SIZE
+      //       sendSize = TCP_PACKET_MAX_PAYLOAD_SIZE;
+      //       TCPflag = ACK;
+      //     }  
+      //     else { //send normaly with PUSH flag <- let it know it is the end of the data send
+      //       sendSize = buffSize;
+      //       TCPflag = PUSH;
+      //     }
+      //     //edit socket for correct data
 
-          if (socketHolder->lastSent == 0) {socketHolder->lastSent = 1;}
-          else{socketHolder->lastSent = 0;}
+      //     if (socketHolder->lastSent == 0) {socketHolder->lastSent = 1;}
+      //     else{socketHolder->lastSent = 0;}
           
-          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                      socketHolder->src,             //uint8_t src
-                      socketHolder->dest.port,    //??   //uint8_t des
-                      TCPflag,                           //uint8_t flag
-                      socketHolder->lastSent,           //uint8_t seq
-                      0, /*socketHolder->nextExpected*///uint8_t ack
-                      sendSize,                        //uint8_t HdrLen
-                      1,                               //uint8_t advertised_window
-                      socketHolder->sendBuff,          //uint8_t* payload
-                      sendSize);                            //uint8_t length
-          makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+      //     makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+      //                 socketHolder->src,             //uint8_t src
+      //                 socketHolder->dest.port,    //??   //uint8_t des
+      //                 TCPflag,                           //uint8_t flag
+      //                 socketHolder->lastSent,           //uint8_t seq
+      //                 0, /*socketHolder->nextExpected*///uint8_t ack
+      //                 sendSize,                        //uint8_t HdrLen
+      //                 1,                               //uint8_t advertised_window
+      //                 socketHolder->sendBuff,          //uint8_t* payload
+      //                 sendSize);                            //uint8_t length
+      //     makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
           
-          dbg(TRANSPORT_CHANNEL," Sending Message: %s\n",sendPackageTCP.payload);
+      //     dbg(TRANSPORT_CHANNEL," Sending Message: %s\n",sendPackageTCP.payload);
 
-          //send packet
-          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
+      //     //send packet
+      //     call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
 
-          //set timmer to posibly resend packet
-          dbg(TRANSPORT_CHANNEL," Sendt Message: %s\n",sendPackageTCP.payload);
+      //     //set timmer to posibly resend packet
+      //     dbg(TRANSPORT_CHANNEL," Sendt Message: %s\n",sendPackageTCP.payload);
 
-          //edit buffer
-          if(buffSize > TCP_PACKET_MAX_PAYLOAD_SIZE){
-          memcpy(TempSendBuff, &((socketHolder->sendBuff)[sendSize]), buffSize - sendSize);
-          dbg(TRANSPORT_CHANNEL," TempSendBuff: %s\n",TempSendBuff);
-          }
+      //     //edit buffer
+      //     if(buffSize > TCP_PACKET_MAX_PAYLOAD_SIZE){
+      //     memcpy(TempSendBuff, &((socketHolder->sendBuff)[sendSize]), buffSize - sendSize);
+      //     dbg(TRANSPORT_CHANNEL," TempSendBuff: %s\n",TempSendBuff);
+      //     }
 
-          else{
-              for (i = 0; i < SOCKET_BUFFER_SIZE; i++){ //I don't know if I need to fill this
-                socketHolder->sendBuff[i] = 0;
-              }
-          }
+      //     else{
+      //         for (i = 0; i < SOCKET_BUFFER_SIZE; i++){ //I don't know if I need to fill this
+      //           socketHolder->sendBuff[i] = 0;
+      //         }
+      //     }
 
 
-          //TempSendBuff
-          //memcpy(socketHolder->sendBuff, (socketHolder->sendBuff)[sendSize], buffSize);
-          //memcpy(socketHolder->sendBuff, &((socketHolder->sendBuff)[sendSize, buffSize]), buffSize - sendSize);
+      //     //TempSendBuff
+      //     //memcpy(socketHolder->sendBuff, (socketHolder->sendBuff)[sendSize], buffSize);
+      //     //memcpy(socketHolder->sendBuff, &((socketHolder->sendBuff)[sendSize, buffSize]), buffSize - sendSize);
 
-        }
-      }
+      //   }
+      // }
     }
   }//end of: void sendPacketDone(error_t err)
 
