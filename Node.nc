@@ -120,7 +120,7 @@ implementation{
 
    event void CommandHandler.setTestServer(uint8_t port){
       socket_addr_t myAddr; //not realy needed exept to satisfy bind requirements
-      socket_t mySocket = call Transport.socket();
+      socket_t mySocket = call Transport.socket(port);
 
       if (mySocket == 0){
          dbg(TRANSPORT_CHANNEL, "Could not retrive an available socket\n");
@@ -141,12 +141,23 @@ implementation{
 
    event void CommandHandler.setTestClient(uint8_t srcPort, uint8_t destination, uint8_t destPort, uint8_t *payload){
       socket_addr_t destAddr;
+      uint8_t i;//, AmountWritten;
+      socket_t mySocket = call Transport.socket(srcPort);
       destAddr.addr = destination; //filled with usless info
       destAddr.port = destPort;    //filled with usless info
-      if(call Transport.bind(srcPort, &destAddr))
+      if(call Transport.bind(mySocket, &destAddr))
          return;
-      if(call Transport.connect(srcPort, &destAddr))
+      if(call Transport.connect(mySocket, &destAddr))
          return;
+
+      //save the value here into a holder to read for bugtesting
+
+      for(i=0; payload[i] != '\0'; i++ ){}
+
+      dbg(TRANSPORT_CHANNEL, "sizeof(payload): %d\n", i);
+
+      //AmountWritten = 
+      call Transport.write(srcPort,payload,i);
 
       //add the payload to a que to be cut up and packaged to be sent after connection
 

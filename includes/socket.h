@@ -64,7 +64,7 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
     uint8_t sendBuff[SOCKET_BUFFER_SIZE];
     uint8_t lastWritten;    //packet sequence number allowed for new data transmission
     uint8_t lastSent;       // SND.UNA - last sent data that is not acknowledged yet
-    uint8_t lastAck;        //acknowledged sequence numbers
+    uint8_t lastAck;        //last ack sent
 
 /*
     Receive Sequence Space
@@ -80,9 +80,9 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 */
     // This is the receiver portion
     uint8_t rcvdBuff[SOCKET_BUFFER_SIZE];
-    uint8_t lastRead;
-    uint8_t lastRcvd;
-    uint8_t nextExpected;
+    uint8_t lastRead; //last packet put into the buffer
+    uint8_t lastRcvd; //largest packet recived
+    uint8_t nextExpected; //next packet expected
 
     uint16_t RTT;
     uint8_t effectiveWindow;

@@ -25,5 +25,11 @@ implementation {
 	components new HashmapC(socket_store_t, MAX_NUM_OF_SOCKETS) as Connections;
     TransportP.Connections->Connections;
 
+	components new TimerMilliC() as sendPacketTimer;
+    TransportP.sendPacketTimer -> sendPacketTimer;
+
+	components new TimerMilliC() as sendDataTimer;
+    TransportP.sendDataTimer -> sendDataTimer;
+
     //NOTE: wire timmers 
 }

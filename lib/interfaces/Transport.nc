@@ -24,7 +24,7 @@ interface Transport{
     *    associated with a socket. If you are unable to allocated
     *    a socket then return a NULL socket_t.
     */
-   command socket_t socket();
+   command socket_t socket(socket_t fd);
 
    /**
     * Bind a socket with an address.
@@ -69,7 +69,7 @@ interface Transport{
     * @return uint16_t - return the amount of data you are able to write
     *    from the pass buffer. This may be shorter then bufflen
     */
-//   command uint16_t write(socket_t fd, uint8_t *buff, uint16_t bufflen);
+   command uint16_t write(socket_t fd, uint8_t *buff, uint16_t bufflen);
 
    /**
     * This will pass the packet so you can handle it internally. 
@@ -96,7 +96,7 @@ interface Transport{
     * @return uint16_t - return the amount of data you are able to read
     *    from the pass buffer. This may be shorter then bufflen
     */
-//   command uint16_t read(socket_t fd, uint8_t *buff, uint16_t bufflen);
+   command uint16_t read(socket_t fd, uint8_t *buff, uint16_t bufflen);
 
    /**
     * Attempts a connection to an address.
@@ -144,4 +144,7 @@ interface Transport{
     *   to listen else FAIL.
     */
    command error_t listen(socket_t fd);
+
+   //event void sendDataDone(error_t err);
+
 }
