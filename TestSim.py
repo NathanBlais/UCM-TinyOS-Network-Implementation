@@ -200,6 +200,7 @@ def main():
     s.runTime(60);
     s.cmdTestClient(1,8,6,10, "Hello, bozo"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
     s.runTime(1000);
+
     #s.cmdClientClose(2,80,3,10); #[client adress] [srcPort] [dest] [destPort]
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
