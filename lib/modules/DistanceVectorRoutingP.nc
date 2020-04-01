@@ -28,6 +28,9 @@ module DistanceVectorRoutingP
     uses interface Random; //Not really used anymore
     uses interface RouteTable;
 
+    uses interface Queue<reciveInfo*>;
+    uses interface Pool<reciveInfo>;
+
     //interface PacketAcknowledgements <- i just found this
     //interface RouteSelect;
     //interface RouteControl as RouteSelectCntl;
@@ -76,6 +79,8 @@ implementation
     void printRouteTable();
     void InitalizeRoutingTable();
     void updateRoutingTable(route * newRoutes, uint16_t size);
+    error_t receive(message_t* msg, pack* payload, uint8_t len);
+
 
 //--==Comands==--＼＼
 
@@ -83,7 +88,7 @@ implementation
     //Starts timer to send route values to our neighbors
     command void DistanceVectorRouting.run()
     {
-        call InitalizationWait.startOneShot(1000);
+        call InitalizationWait.startOneShot(30000);
         //call InitalizationWait.startPeriodic(30000 /*+ (call Random.rand16() %300)*/); //30 Seconds
         //call periodicTimer.startPeriodic(150000 /* 
       //  + (call Random.rand16() %300) */);
@@ -174,14 +179,60 @@ implementation
                 }
             }
         }
-        call advertiseTimer.startOneShot(6000);
+        call advertiseTimer.startOneShot(20000);
     }
 
+    task void receiveBufferTask(){
+       // If we have a values in our queue and the radio is not busy, then
+       // attempt to send a packet.
+        if(!call Queue.empty()){
+         reciveInfo *info;
+         // We are peeking since, there is a possibility that the value will not
+         // be successfuly sent and we would like to continue to attempt to send
+         // it until we are successful. There is no limit on how many attempts
+         // can be made.
+         info = call Queue.head();
+
+         // Attempt to send it.
+            if(SUCCESS == receive(&(info->msg),&(info->payload), info->len)){
+                //Release resources used if the attempt was successful
+                call Queue.dequeue();
+                call Pool.put(info);
+            }
+        }
+    }
+    
     event message_t* Receiver.receive(message_t* msg, void* payload, uint8_t len){
+        if(!call Pool.empty()){
+            reciveInfo *input;
+            // message_t msg2;
+
+            // memcpy(&msg2, msg, sizeof(*msg));
+
+            // dbg(ROUTING_CHANNEL, "Print call AMPacket.source(msg2) : %d\n",call AMPacket.source(&msg2));
+
+            input = call Pool.get();
+            memcpy(&(input->msg), msg, sizeof(*msg));
+            memcpy(&(input->payload), payload, PACKET_MAX_PAYLOAD_SIZE);
+            input->len = len;
+
+            // Now that we have a value from the pool we can put it into our queue.
+            // This is a FIFO queue.
+            call Queue.enqueue(input);
+
+            // Start a send task which will be delayed.
+            post receiveBufferTask();
+
+            return msg;
+        }
+        return msg;
+    }
+
+    error_t receive(message_t* msg, pack* payload, uint8_t len){
         dbg(ROUTING_CHANNEL, "Packet Received in DVRouter\n");
         //Check to see if the packet is the right size
         if(len==sizeof(pack)){
-            pack* myMsg=(pack*) payload;
+            pack* myMsg= payload;
             route* routes = (route*) myMsg->payload;
             route* theTable = call RouteTable.getPointer();
             uint16_t cost = routes->Cost + 1;
@@ -191,18 +242,18 @@ implementation
             //Check that the packet has the proper protocol
             if(myMsg->protocol != PROTOCOL_DV){
                 dbg(ROUTING_CHANNEL, "Wrong Protocal Recived\n");
-                return msg;}
+                return SUCCESS;}
 
             //Check that the route's "destination" is not the current node
             if((routes->Destination).id == TOS_NODE_ID){
-                return msg;
+                return SUCCESS;
             }
             //main RIP receiver
                     //if (dest ∈/ known) and (newMetric < 16) then
             if(position == MAX_ROUTES/* && cost < MAX_COST*/){ //New Route
                 if (call RouteTable.size() >= MAX_ROUTES){
                     dbg(ROUTING_CHANNEL, "Routing Table Full\n");
-                    return msg;}
+                    return SUCCESS;}
                 (forNewRoute.Destination).id = (routes->Destination).id;
                 forNewRoute.Cost = cost; 
                 (forNewRoute.NextHop).id = myMsg->src; 
@@ -220,10 +271,10 @@ implementation
                    //theTable[position]->Destination.id = (routes->Destination).id;
                 }
             }
-        return msg;
+        return SUCCESS;
        }
        dbg(ROUTING_CHANNEL, "Unknown Packet Type %d\n", len);
-       return msg;
+       return SUCCESS;
    }
 
 //--==Funcions==--＼＼

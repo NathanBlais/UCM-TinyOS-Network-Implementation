@@ -15,6 +15,12 @@ typedef struct sendInfo{
 	uint16_t dest;
 }sendInfo;
 
+typedef struct reciveInfo{
+	message_t msg;
+	pack payload;
+	uint8_t len;
+}reciveInfo;
+
 typedef struct neighbor {
 		uint16_t id;
 		bool flag;

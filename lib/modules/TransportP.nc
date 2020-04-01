@@ -198,7 +198,7 @@ module TransportP{
 
      // call a sender timmer
      //    call sendDataTimer.startPeriodic(2 * tempSocket.RTT);
-    call sendDataTimer.startPeriodic(80000);
+    call sendDataTimer.startPeriodic(81000);
     return written;
   }
 
@@ -214,9 +214,22 @@ module TransportP{
       uint8_t size = call Connections.size();
       uint32_t * keys = call Connections.getKeys();
 
-      if(size == 0){
+      for(i=0;i<size;i++){
+        socketHolder = call Connections.getPointer(keys[i]);
+        if(socketHolder->sendBuff[0] != 0){
+          i = 0;
+          break;
+        }
+      }
+
+      if(size == 0 || i == size ){
+        dbg(TRANSPORT_CHANNEL,"Data Timer Stoped\n");
         call sendDataTimer.stop();
       }
+
+      
+
+
       dbg(TRANSPORT_CHANNEL," ATTEMPTING TO SEND DATA\n");
       for(i=0;i<size;i++){
         socketHolder = call Connections.getPointer(keys[i]);

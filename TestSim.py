@@ -185,23 +185,28 @@ def main():
 
     s.runTime(1);
     #s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
-    s.runTime(150);
+    s.runTime(250);
 
-   # for i in range(1, 19):
-    #    s.routeDMP(i);
-   #     s.runTime(1);
-    s.runTime(120);
+    # for i in range(1, 19):
+    #     s.routeDMP(i);
+    #     s.runTime(1);
+    # s.runTime(10);
     #s.ping(2, 6, "Hi!");
     #s.runTime(100);
 
     #####***TCP Test***##### 
     #s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestServer(6,10); #[adress] [port]
-    s.runTime(60);
+    s.runTime(20);
+    # s.ping(1, 6, "I'll have you know I gr");
+    # s.runTime(10);
+    # s.ping(1, 6, "I'll have you know I gr");
+    # s.runTime(10);
+    # s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestClient(1,8,6,10, "Hello, bozo"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    s.runTime(1000);
-
-    #s.cmdClientClose(2,80,3,10); #[client adress] [srcPort] [dest] [destPort]
+    s.runTime(100);
+    s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
+    s.runTime(200);
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);

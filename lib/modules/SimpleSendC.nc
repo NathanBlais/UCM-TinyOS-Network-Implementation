@@ -21,8 +21,8 @@ implementation{
    SimpleSendP.AMSend -> AMSenderC;
 
    //Lists
-   components new PoolC(sendInfo, 100);
-   components new QueueC(sendInfo*, 100);
+   components new PoolC(sendInfo, 200);
+   components new QueueC(sendInfo*, 200);
 
    SimpleSendP.Pool -> PoolC;
    SimpleSendP.Queue -> QueueC;

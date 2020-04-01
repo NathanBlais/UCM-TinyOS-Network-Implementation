@@ -45,4 +45,12 @@ implementation {
     DistanceVectorRoutingP.PacketsList -> PacketsList;
 
 
+	   //Lists
+   components new PoolC(reciveInfo, 100);
+   components new QueueC(reciveInfo*, 100);
+
+   DistanceVectorRoutingP.Pool -> PoolC;
+   DistanceVectorRoutingP.Queue -> QueueC;
+
+
 }

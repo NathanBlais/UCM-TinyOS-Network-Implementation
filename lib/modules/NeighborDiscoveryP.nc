@@ -48,18 +48,29 @@ implementation
         makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_PING, temp, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 
-        call periodicTimer.startPeriodic(10000);
+        call periodicTimer.startPeriodic(20000);
     }
+
+    task void updateNeighborsTask(){
+        updateNeighbors();
+    }
+
+    task void senderTask(){
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_PING, temp, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+    }
+
 
     event void periodicTimer.fired()
     {
         dbg(NEIGHBOR_CHANNEL, "Sending from NeighborDiscovery\n");
-        updateNeighbors();
+        post updateNeighborsTask();
 
-        //optional - call a funsion to organize the list
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, SEQ_NUM, PROTOCOL_PING, temp, PACKET_MAX_PAYLOAD_SIZE);
-        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+        //optional - call a function to organize the list
+        post senderTask();
     }
+
+    
 
     command void NeighborDiscovery.print()
     {

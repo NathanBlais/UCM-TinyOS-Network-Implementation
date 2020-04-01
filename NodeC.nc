@@ -42,4 +42,11 @@ implementation {
 
     components TransportC as Transport;
     Node.Transport -> Transport;  
+
+    	   //Lists
+    components new PoolC(reciveInfo, 20);
+    components new QueueC(reciveInfo*, 20);
+
+    Node.Pool -> PoolC;
+    Node.Queue -> QueueC;
 }
