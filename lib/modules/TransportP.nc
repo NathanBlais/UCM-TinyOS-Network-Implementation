@@ -513,6 +513,7 @@ module TransportP{
         if(mySegment->Flags == ACK){
 
           curConection->state=CLOSED;
+          dbg(TRANSPORT_CHANNEL, "CLOSED FROM CASE LAST ACK AND STATE ACK \n");
 
         }
         if(mySegment->Flags == PUSH){}
@@ -538,7 +539,8 @@ module TransportP{
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
         curConection->state = TIME_WAIT;
         //timer 
-        curConection-> state = CLOSED;
+        curConection-> state = CLOSED; 
+        dbg(TRANSPORT_CHANNEL, "TIME TURNED TO CLOSED \n");
         }
         break; 
       case FIN_WAIT_1:
