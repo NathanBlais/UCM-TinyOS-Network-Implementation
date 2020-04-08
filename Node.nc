@@ -118,11 +118,9 @@ implementation{
          call Flooder.send(*contents, contents->dest);
       }
       if (contents->dest != TOS_NODE_ID){ //Check if the packet is not meant for the current node
-			dbg(GENERAL_CHANNEL, "We're in Node %d \n \t\tRouting Packet- src:%d, dest %d, seq: %d, nexthop: %d, count: %d\n \n",TOS_NODE_ID, contents->src, contents->dest, contents->seq, call DistanceVectorRouting.GetNextHop(contents->dest), call DistanceVectorRouting.GetCost(contents->dest));
-	      if (contents->protocol == PROTOCOL_PING || contents->protocol == PROTOCOL_PINGREPLY || contents->protocol == PROTOCOL_TCP){
+			dbg(GENERAL_CHANNEL, "\t\tRouting Packet- src:%d, dest %d, seq: %d, nexthop: %d, count: %d\n",TOS_NODE_ID, contents->src, contents->dest, contents->seq, call DistanceVectorRouting.GetNextHop(contents->dest), call DistanceVectorRouting.GetCost(contents->dest));
+	      if (contents->protocol == PROTOCOL_PING || contents->protocol == PROTOCOL_PINGREPLY || contents->protocol == PROTOCOL_TCP)
             result = call Sender.send(*contents, call DistanceVectorRouting.GetNextHop(contents->dest));
-            dbg(GENERAL_CHANNEL, "RECIVE EVENT SEND ON result: %d \n",result);
-            }
          else
             dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol?\n");
          return SUCCESS;

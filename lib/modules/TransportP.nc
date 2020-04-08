@@ -51,10 +51,7 @@ module TransportP{
     void makeIPpack(pack *Package, tcpHeader  *myTCPpack, socket_store_t *sock, uint8_t length);
 
 
-
-
   command socket_t Transport.socket(socket_t fd){
-    //uint8_t i;
     dbg(TRANSPORT_CHANNEL,"Transport.socket() Called\n");
     if(call Connections.contains(0)) { //if there is room
       if(!(call Connections.contains(fd))) 
@@ -63,11 +60,6 @@ module TransportP{
         dbg(TRANSPORT_CHANNEL,"Failed: port %d is not available\n", fd);
         return NULLSocket;
       }
-
-    //  for(i=1; i-1 <= call Connections.size(); i++){
-    //    if(!(call Connections.contains(i)))               //Brobubly Broken
-    //      return (socket_t) i;
-    //  }
     }
     dbg(TRANSPORT_CHANNEL,"Failed: No sockets are available\n");
     return NULLSocket;
@@ -75,7 +67,6 @@ module TransportP{
 
   command error_t Transport.bind(socket_t fd, socket_addr_t *addr){
     socket_store_t TCB;    //Transmission Control Block
-    //int i = 0;
     //Checkers 
     if(fd == 0 || fd > MAX_NUM_OF_SOCKETS){
       dbg(TRANSPORT_CHANNEL,"Socket:%d is not valid. Try number: 1-10\n", fd);
@@ -95,16 +86,10 @@ module TransportP{
     TCB.dest = *addr;
     TCB.state = CLOSED;
     // This is the sender portion.
-    // for (i = 0; i < SOCKET_BUFFER_SIZE; i++){ //I don't know if I need to fill this
-		// 	TCB.sendBuff[i] = 0;
-		// }
     TCB.lastWritten = 0;
     TCB.lastAck = 0;
     TCB.lastSent = 0;
     // This is the receiver portion
-    // for (i = 0; i < SOCKET_BUFFER_SIZE; i++){ //I don't know how this should be used or mannaged
-    //   TCB.rcvdBuff[i] = 0;
-		// }
     TCB.lastRead = 0;
     TCB.lastRcvd = 0;
     TCB.nextExpected = 0;
@@ -126,11 +111,8 @@ module TransportP{
   command socket_t Transport.accept(socket_t fd, pack* myPacket){
     socket_store_t * mySocket;
     uint8_t lastRcvd;
-    uint8_t nextExpected;
     tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
     mySocket = call Connections.getPointer(fd);
-    dbg(TRANSPORT_CHANNEL, "STATE: %d in accept \n",mySocket->state);
-
     lastRcvd = myTcpHeader->Seq_Num; // do i need this?
         
     mySocket->state = SYN_RCVD;
@@ -153,11 +135,9 @@ module TransportP{
     //call timer
     //send packet
     call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(5));
-    // i need to get the new socket......but how?
 
     return fd;
   }
-
 
 
    /**
@@ -227,9 +207,6 @@ module TransportP{
         call sendDataTimer.stop();
       }
 
-      
-
-
       dbg(TRANSPORT_CHANNEL," ATTEMPTING TO SEND DATA\n");
       for(i=0;i<size;i++){
         socketHolder = call Connections.getPointer(keys[i]);
@@ -291,7 +268,6 @@ module TransportP{
                 socketHolder->sendBuff[i] = 0;
               }
           }
-
 
           //TempSendBuff
           //memcpy(socketHolder->sendBuff, (socketHolder->sendBuff)[sendSize], buffSize);
