@@ -190,7 +190,7 @@ module TransportP{
     if(err == SUCCESS){
       socket_store_t * socketHolder;
       uint8_t TempSendBuff[SOCKET_BUFFER_SIZE];
-      uint8_t buffSize, sendSize, TCPflag, j, i;
+      uint8_t buffSize, sendSize, TCPflag, i;
       uint8_t size = call Connections.size();
       uint32_t * keys = call Connections.getKeys();
 
@@ -484,8 +484,8 @@ module TransportP{
                     1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
                     1,                             //uint8_t advertised_window
-                    "",                            //uint8_t* payload
-                    1);                            //uint8_t length
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
         makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
         //call timer first or after?
@@ -529,8 +529,8 @@ module TransportP{
                     1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
                     1,                             //uint8_t advertised_window
-                    "",                            //uint8_t* payload
-                    1);                            //uint8_t length
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
         makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
@@ -576,8 +576,8 @@ module TransportP{
                     1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
                     1,                             //uint8_t advertised_window
-                    "",                            //uint8_t* payload
-                    1);                            //uint8_t length
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
         makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
         //set a timer that eventually closes the socket
@@ -624,23 +624,20 @@ module TransportP{
     *    from the pass buffer. This may be shorter then bufflen
     */
   command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen){
-    uint8_t buffSize, i;
+    uint8_t buffSize;
     socket_store_t * socketHolder =  call Connections.getPointer(fd);
 
     dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
     for(buffSize=0; socketHolder->sendBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
 
-    // for (i = 0; i < bufflen; i++){
-    //   socketHolder->rcvdBuff[buffSize + i] = buff[i] ;
-		// }
-
-    strcat(socketHolder->rcvdBuff, buff);
+    strcat((socketHolder->rcvdBuff), buff);
 
     if (socketHolder->lastRead == 0) {socketHolder->lastRead = 1;}
     else{socketHolder->lastRead = 0;}
     if (socketHolder->nextExpected == 0) {socketHolder->nextExpected = 1;}
     else{socketHolder->nextExpected = 0;}
 
+    return 1; // for warning
    }
 
   command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
@@ -751,8 +748,8 @@ module TransportP{
                     1, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
                     1,                             //uint8_t advertised_window
-                    "",                            //uint8_t* payload
-                    1);                            //uint8_t length
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
         makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
@@ -775,8 +772,8 @@ module TransportP{
                     1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
                     1,                             //uint8_t HdrLen
                     1,                             //uint8_t advertised_window
-                    "",                            //uint8_t* payload
-                    1);                            //uint8_t length
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
         makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
          //call timer
         //send packet
