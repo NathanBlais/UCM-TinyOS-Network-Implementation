@@ -497,7 +497,26 @@ module TransportP{
         }
         if(mySegment->Flags == RESET){}
         if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
+        if(mySegment->Flags == FIN){
+          dbg(TRANSPORT_CHANNEL, "In state ESTABLISHED, in flag FIN \n");
+           curConection-> state = CLOSE_WAIT;
+                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    curConection->src,
+                    curConection->dest.port,                    //uint8_t des //not sure
+                    ACK,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    1,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    "",                            //uint8_t* payload
+                    1);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
+        //call timer first or after?
+        call Transport.close(curConection->src); 
+        //timer? or command most likey command
+        
+        }
         break; 
       case CLOSE_WAIT:
         if(mySegment->Flags == URG){}
@@ -542,20 +561,37 @@ module TransportP{
         //edit sender
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
         curConection->state = TIME_WAIT;
-        //timer
+        //timer 
         curConection-> state = CLOSED;
         }
         break; 
       case FIN_WAIT_1:
         if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
+        if(mySegment->Flags == ACK){ // need to add case for normal packets
+        //this is just for the close
+          curConection ->state = FIN_WAIT_2;
+          //...
+
+
+        }
         if(mySegment->Flags == PUSH){}
         if(mySegment->Flags == RESET){}
         if(mySegment->Flags == SYN){}
         if(mySegment->Flags == FIN){
 
 //---------------------------------------------------------------------------------------------------------------------
-        curConection-> state = CLOSE_WAIT;
+         // state in curConnection is CLOSE_WAIT
+ //----------------------------------------------------------------------------------------------------------------------------------      
+        }
+        break; 
+      case FIN_WAIT_2:
+        if(mySegment->Flags == URG){}
+        if(mySegment->Flags == ACK){}
+        if(mySegment->Flags == PUSH){}
+        if(mySegment->Flags == RESET){}
+        if(mySegment->Flags == SYN){}
+        if(mySegment->Flags == FIN){
+          curConection-> state = TIME_WAIT;
                     makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
                     curConection->src,
                     curConection->dest.port,                    //uint8_t des //not sure
@@ -568,18 +604,8 @@ module TransportP{
                     1);                            //uint8_t length
         makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
-        //timer?
-        call Transport.close(curConection->src); // state in curConnection is CLOSE_WAIT
- //----------------------------------------------------------------------------------------------------------------------------------      
+        //set a timer that eventually closes the socket
         }
-        break; 
-      case FIN_WAIT_2:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
         break; 
       case CLOSING:
         if(mySegment->Flags == URG){}
@@ -708,7 +734,9 @@ module TransportP{
     */
    command error_t Transport.close(socket_t fd)
    {
+     
       socket_store_t * mySocket;
+      dbg(TRANSPORT_CHANNEL, "In close function, line 711 in TransportP \n");
       //tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
       
       if (!(call Connections.contains(fd)))
@@ -726,10 +754,15 @@ module TransportP{
         break;
         
         case LISTEN: //nothing
+        mySocket->state = CLOSED;
+        dbg(TRANSPORT_CHANNEL, "Socket that had listen is now closed \n");
+        return SUCCESS;
+        break;
         case SYN_SENT: //nothing
         case SYN_RCVD: //nothing
         case ESTABLISHED: //good
         //APPPARANTLY not used here
+        dbg(TRANSPORT_CHANNEL, "In close ESTABLISHED \n");
         mySocket->state = FIN_WAIT_1;
        // mySocket->dest.port= myTcpHeader->Src_Port; //ask if necessary
        // mySocket->dest.addr= myPacket->src; //ask if necessary
@@ -753,7 +786,9 @@ module TransportP{
         return SUCCESS;
         break;
         
+        //make timer that checks if the packets of the payload are done sending, wait APP, research to know when it's done, timer or a command
         case CLOSE_WAIT: //changes wait to FIN WAIT 2 flag fin
+        dbg(TRANSPORT_CHANNEL, "In close CLOSE_WAIT \n");
                     mySocket-> state = LAST_ACK;
 
                     makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
@@ -826,81 +861,7 @@ module TransportP{
 
   void sendPacketDone(error_t err){
     if(err == SUCCESS){
-      // socket_store_t * socketHolder;
-
-      // uint8_t buffSize, sendSize, TCPflag, j, i;
-      // uint8_t size = call Connections.size();
-      // uint32_t * keys = call Connections.getKeys();
-
-      // dbg(TRANSPORT_CHANNEL," ATTEMPTING TO RE-SEND DATA\n");
-      // for(i=0;i<size;i++){
-      //   socketHolder = call Connections.getPointer(keys[i]);
-      //   dbg(TRANSPORT_CHANNEL,"keys[i]: %d\n", keys[i]);
-      //   dbg(TRANSPORT_CHANNEL," How many times in the loop: %d\n", i);
-
-      //   dbg(TRANSPORT_CHANNEL,"socketHolder->lastSent: %d | socketHolder->lastAck %d\n",socketHolder->lastSent,socketHolder->lastAck );
-        
-      //   dbg(TRANSPORT_CHANNEL,"socketHolder->sendBuff %s\n",socketHolder->sendBuff );
-
-
-      //   if(socketHolder->state == ESTABLISHED &&
-      //     socketHolder->lastSent == socketHolder->lastAck &&
-      //     socketHolder->sendBuff != '\0')
-      //     { //if true send data
-      //           dbg(TRANSPORT_CHANNEL," Does it enter here?\n");
-      //     for(buffSize=0; socketHolder->sendBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
-      //     if(buffSize > TCP_PACKET_MAX_PAYLOAD_SIZE){//if size of buffer is > TCP_PACKET_MAX_PAYLOAD_SIZE
-      //       sendSize = TCP_PACKET_MAX_PAYLOAD_SIZE;
-      //       TCPflag = ACK;
-      //     }  
-      //     else { //send normaly with PUSH flag <- let it know it is the end of the data send
-      //       sendSize = buffSize;
-      //       TCPflag = PUSH;
-      //     }
-      //     //edit socket for correct data
-
-      //     if (socketHolder->lastSent == 0) {socketHolder->lastSent = 1;}
-      //     else{socketHolder->lastSent = 0;}
-          
-      //     makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-      //                 socketHolder->src,             //uint8_t src
-      //                 socketHolder->dest.port,    //??   //uint8_t des
-      //                 TCPflag,                           //uint8_t flag
-      //                 socketHolder->lastSent,           //uint8_t seq
-      //                 0, /*socketHolder->nextExpected*///uint8_t ack
-      //                 sendSize,                        //uint8_t HdrLen
-      //                 1,                               //uint8_t advertised_window
-      //                 socketHolder->sendBuff,          //uint8_t* payload
-      //                 sendSize);                            //uint8_t length
-      //     makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
-          
-      //     dbg(TRANSPORT_CHANNEL," Sending Message: %s\n",sendPackageTCP.payload);
-
-      //     //send packet
-      //     call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
-
-      //     //set timmer to posibly resend packet
-      //     dbg(TRANSPORT_CHANNEL," Sendt Message: %s\n",sendPackageTCP.payload);
-
-      //     //edit buffer
-      //     if(buffSize > TCP_PACKET_MAX_PAYLOAD_SIZE){
-      //     memcpy(TempSendBuff, &((socketHolder->sendBuff)[sendSize]), buffSize - sendSize);
-      //     dbg(TRANSPORT_CHANNEL," TempSendBuff: %s\n",TempSendBuff);
-      //     }
-
-      //     else{
-      //         for (i = 0; i < SOCKET_BUFFER_SIZE; i++){ //I don't know if I need to fill this
-      //           socketHolder->sendBuff[i] = 0;
-      //         }
-      //     }
-
-
-      //     //TempSendBuff
-      //     //memcpy(socketHolder->sendBuff, (socketHolder->sendBuff)[sendSize], buffSize);
-      //     //memcpy(socketHolder->sendBuff, &((socketHolder->sendBuff)[sendSize, buffSize]), buffSize - sendSize);
-
-      //   }
-      // }
+    
     }
   }//end of: void sendPacketDone(error_t err)
 
