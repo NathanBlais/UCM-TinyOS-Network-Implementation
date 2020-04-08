@@ -32,4 +32,15 @@ implementation {
     TransportP.sendDataTimer -> sendDataTimer;
 
     //NOTE: wire timmers 
+
+
+	//Lists
+   	components new PoolC(pack, 100);
+   	components new QueueC(pack*, 100);
+
+   	TransportP.Pool -> PoolC;
+   	TransportP.Queue -> QueueC;
+
+
+
 }

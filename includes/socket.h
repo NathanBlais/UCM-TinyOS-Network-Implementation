@@ -9,17 +9,16 @@ enum{
 };
 
 enum socket_state{
-    CLOSED,      //0
-    LISTEN,      //1
-    SYN_SENT,    //2
-    SYN_RCVD,    //3
-    ESTABLISHED, //4
-    CLOSE_WAIT,  //5 
-    LAST_ACK,    //6
-    FIN_WAIT_1,  //7
-    FIN_WAIT_2,  //8
-    CLOSING,     //9
-    TIME_WAIT,   //10
+    CLOSED       = 0,
+    LISTEN       = 1,
+    SYN_SENT     = 2,
+    SYN_RCVD     = 3,
+    ESTABLISHED  = 4,
+    CLOSE_WAIT   = 5,
+    LAST_ACK     = 6,
+    FIN_WAIT_1   = 7,
+    FIN_WAIT_2   = 8,
+    TIME_WAIT    = 9
 };
 
 typedef nx_uint8_t nx_socket_port_t;
@@ -34,6 +33,14 @@ typedef nx_struct socket_addr_t{
 
 // File descripter id. Each id is associated with a socket_store_t
 typedef uint8_t socket_t;
+
+enum {
+  /* how many timer tics to stay in TIME_WAIT */
+  TIMEWAIT_LEN = 1,
+  //2MSL = 4,
+  /* how many un-acked retransmissions before we give up the connection */
+  GIVEUP = 6,
+};
 
 
 typedef struct socket_store_t{ //(TCB) - Transmission Control Block
@@ -86,6 +93,9 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 
     uint16_t RTT;
     uint8_t effectiveWindow;
+
+    /* retransmission counter */
+    uint16_t reTransCnt;
 
     pack LastSentIPpackage;
 

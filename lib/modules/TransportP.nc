@@ -27,6 +27,12 @@ module TransportP{
   uses interface Timer<TMilli> as sendPacketTimer;
   uses interface Timer<TMilli> as sendDataTimer;
 
+  uses interface Queue<pack*>;
+  uses interface Pool<pack>;
+
+  //make buffer to store last packet recived
+
+
  }
 
  implementation{
@@ -49,6 +55,8 @@ module TransportP{
 
     void makeTCPpack(tcpHeader *Package, uint8_t src, uint8_t dest, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t len, uint8_t ad_win, uint8_t* payload, uint8_t length);
     void makeIPpack(pack *Package, tcpHeader  *myTCPpack, socket_store_t *sock, uint8_t length);
+    error_t receive(pack* package);
+
 
 
   command socket_t Transport.socket(socket_t fd){
@@ -109,60 +117,51 @@ module TransportP{
   }
 
   command socket_t Transport.accept(socket_t fd, pack* myPacket){
-    socket_store_t * mySocket;
-    uint8_t lastRcvd;
+    socket_store_t * socketHolder;
     tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
-    mySocket = call Connections.getPointer(fd);
-    lastRcvd = myTcpHeader->Seq_Num; // do i need this?
-        
-    mySocket->state = SYN_RCVD;
 
-    mySocket->dest.port= myTcpHeader->Src_Port;
-    mySocket->dest.addr= myPacket->src;
-    mySocket->nextExpected = 1;
-        
-    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                mySocket->src,
-                mySocket->dest.port,                    //uint8_t des //not sure
-                SYN,                           //uint8_t flag
-                lastRcvd,                             //uint8_t seq
-                lastRcvd, //socketHolder->nextExpected///uint8_t ack
-                0,                             //uint8_t HdrLen
-                1,                             //uint8_t advertised_window
-                Empty,                            //uint8_t* payload
-                0);                            //uint8_t length
-    makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
-    //call timer
-    //send packet
-    call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(5));
+    if (!(call Connections.contains(fd))) return FAIL;
 
+    socketHolder = call Connections.getPointer(fd);
+
+    switch (socketHolder->state) { 
+      case LISTEN:
+      default:
+        //Update Socket
+        socketHolder->state = SYN_RCVD;
+        socketHolder->dest.port= myTcpHeader->Src_Port;
+        socketHolder->dest.addr= myPacket->src;
+
+        //socketHolder->lastAck = myTcpHeader->Seq_Num;
+        socketHolder->lastRcvd = myTcpHeader->Seq_Num;
+        socketHolder->nextExpected = 1;
+
+        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    socketHolder->src,             //uint8_t src
+                    socketHolder->dest.port,       //uint8_t des
+                    SYN,                           //uint8_t flag
+                    socketHolder->lastSent,        //uint8_t seq
+                    socketHolder->lastRcvd,        //uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                         //uint8_t* payload
+                    0);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE);
+        //TO_DO:call timer
+        socketHolder->lastAck = sendPackageTCP.Acknowledgment;
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(5));
+        break;
+    }
     return fd;
   }
 
-
-   /**
-    * Write to the socket from a buffer. This data will eventually be
-    * transmitted through your TCP implimentation.
-    * @param
-    *    socket_t fd: file descriptor that is associated with the socket
-    *       that is attempting a write.
-    * @param
-    *    uint8_t *buff: the buffer data that you are going to wrte from.
-    * @param
-    *    uint16_t bufflen: The amount of data that you are trying to
-    *       submit.
-    * @Side For your project, only client side. This could be both though.
-    * @return uint16_t - return the amount of data you are able to write
-    *    from the pass buffer. This may be shorter then bufflen
-    */
   command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen){
       socket_store_t * curSocket = call Connections.getPointer(fd);
       uint8_t written;
 
     dbg(TRANSPORT_CHANNEL,"Transport.write() Called\n");
-    if (buff == NULL || bufflen < 1){
-      return 0;
-    }
+    if (buff == NULL || bufflen < 1) return 0;
+    if (!(call Connections.contains(fd))) return 0;
 
     //NOTE: this will not work if you try to write too much information back to back
     //for that we need to get the amount of info already on the buffer and make that the
@@ -176,16 +175,494 @@ module TransportP{
     memcpy((curSocket->sendBuff), buff, written);
     dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", curSocket->sendBuff);
 
-     // call a sender timmer
-     //    call sendDataTimer.startPeriodic(2 * tempSocket.RTT);
-    call sendDataTimer.startPeriodic(81000);
+    call sendDataTimer.startPeriodic(81000); //could be set to a diffrent number
     return written;
+  }
+
+  task void receiveBufferTask(){
+       // If we have a values in our queue and the radio is not busy, then
+       // attempt to send a packet.
+        if(!call Queue.empty()){
+         pack *info;
+         // We are peeking since, there is a possibility that the value will not
+         // be successfuly sent and we would like to continue to attempt to send
+         // it until we are successful. There is no limit on how many attempts
+         // can be made.
+         info = call Queue.head();
+
+         // Attempt to send it.
+            if(SUCCESS == receive(info)){
+                //Release resources used if the attempt was successful
+                call Queue.dequeue();
+                call Pool.put(info);
+            }
+        }
+  }
+  command error_t Transport.receive(pack* package){
+    if(!call Pool.empty()){
+      pack *input;
+      input = call Pool.get();
+      memcpy(input, package, PACKET_MAX_PAYLOAD_SIZE);
+
+      // Now that we have a value from the pool we can put it into our queue.
+      // This is a FIFO queue.
+      call Queue.enqueue(input);
+
+      // Start a send task which will be delayed.
+      post receiveBufferTask();
+
+      return SUCCESS;
+    }
+    return FAIL;
+  }
+
+
+
+  error_t receive(pack* package){
+    pack* myMsg=(pack*) package;
+      tcpHeader* mySegment = (tcpHeader*) myMsg->payload;
+      socket_store_t * curConection = call Connections.getPointer(mySegment->Dest_Port);
+
+      dbg(TRANSPORT_CHANNEL, "Transport.receive() Called\n");
+
+      //TO_DO: add check here to see if the packet has been seen before
+
+
+      if(curConection->nextExpected != mySegment->Seq_Num){
+        dbg(TRANSPORT_CHANNEL, "Recived packet with unexpected SEQ #\n");
+        return FAIL;
+      }
+
+      //put some checks here
+
+      //check if the ack of the packet is the expected ack
+      
+      dbg(TRANSPORT_CHANNEL, "STATE: %d | FLAG: %d\n", curConection->state, mySegment->Flags);
+
+      switch (curConection->state) { 
+      case CLOSED: //Don't know what do do with it yet
+        break;  
+      case LISTEN:
+        if(mySegment->Flags == SYN){
+          call Transport.accept(curConection->src, myMsg);
+          return SUCCESS;
+        }
+        else{ //Wrong info
+          return FAIL;
+        }
+        break;                
+      case SYN_SENT:
+            //put some checks here
+        if(mySegment->Flags & ( SYN | ACK )) {
+          //stop timmer
+            //change the state of the socket to established
+          curConection->state = ESTABLISHED;
+          curConection->lastRcvd = mySegment->Seq_Num;
+          curConection->lastSent = 1;
+          curConection->nextExpected = 1;
+          curConection->lastAck = mySegment->Seq_Num;
+          curConection->effectiveWindow = mySegment->Advertised_Window;
+          //curConection.RTT = call LocalTime.get() - tempSocket.RTT + 10;
+
+          //Make the packet to send
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                      mySegment->Dest_Port,          //uint8_t src
+                      mySegment->Src_Port,           //uint8_t des
+                      ACK,                           //uint8_t flag
+                      curConection->lastSent,        //uint8_t seq
+                      curConection->lastAck,         //uint8_t ack
+                      0,                             //uint8_t HdrLen
+                      1,                             //uint8_t advertised_window
+                      Empty,                         //uint8_t* payload
+                      0);                            //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+          curConection->lastAck = sendPackageTCP.Acknowledgment;
+          //TO_DO: save a copy of the packet to be sent by a timmer
+          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
+          return SUCCESS;
+          //optionally do some RTT stuff here
+          //send out inital ack
+          //set timmer
+          //call to start sending packets from que.
+        }
+        else return FAIL;
+        break; 
+      case SYN_RCVD:
+          //put some checks here
+        if(mySegment->Flags & ( SYN | ACK )) {
+          //stop timmer
+          curConection->state = ESTABLISHED;
+          curConection->lastAck = 1;
+          curConection->lastRcvd = mySegment->Seq_Num;
+                    //update last sent
+          if (curConection->lastSent == 0) {curConection->lastSent = 1;}
+          else{curConection->lastSent = 0;}
+          curConection->nextExpected = 0;
+
+          //Make the packet to send
+          makeTCPpack(&sendPackageTCP,          //tcp_pack *Package
+                    mySegment->Dest_Port,       //uint8_t src
+                    mySegment->Src_Port,        //uint8_t des
+                    ACK,                        //uint8_t flag
+                    curConection->lastSent,     //uint8_t seq
+                    mySegment->Seq_Num,         //uint8_t ack
+                    0,                          //uint8_t HdrLen
+                    1,                          //uint8_t advertised_window
+                    Empty,                      //uint8_t* payload
+                    0);                         //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+          curConection->lastAck = sendPackageTCP.Acknowledgment;
+          //TO_DO: save a copy of the packet to posibly be sent by a timmer
+          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
+          return SUCCESS;
+        }
+        else return FAIL;
+        break; 
+
+      case CLOSE_WAIT:
+        if(mySegment->Flags == ACK){
+          curConection-> state = CLOSED;
+          return SUCCESS;
+          break;
+        }
+      case FIN_WAIT_1:
+        if(mySegment->Flags == ACK){ // might need to add case for normal packets
+        //this is just for the close
+          curConection ->state = FIN_WAIT_2;
+          return SUCCESS;
+          break; 
+        }
+      case FIN_WAIT_2:
+        if(mySegment->Flags == FIN){
+          curConection-> state = TIME_WAIT;
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    curConection->src,
+                    curConection->dest.port,                    //uint8_t des //not sure
+                    ACK,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
+        //set a timer that eventually closes the socket
+        return SUCCESS;
+        break; 
+        }
+      case ESTABLISHED:
+        if(mySegment->Flags == ACK){
+          curConection->lastAck = mySegment->Acknowledgment;
+          curConection->lastRcvd = mySegment->Seq_Num;
+          if(mySegment->Len == 0){ //this is a normal ack pack
+            //update socket
+            //stop resend for data
+          }
+          else{ // has data   //Only need to ipmlement this if you send more than one packet of data       
+            //update socket
+            call Transport.read(curConection->src, mySegment->payload, mySegment->Len);
+
+            //make ack packet
+            //store pack for resend
+            //send back an ack packet
+          }
+        }
+        else if(mySegment->Flags == PUSH){
+          dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
+
+          call Transport.read(curConection->src, mySegment->payload, mySegment->Len);
+          //print out entire buffer
+          dbg(TRANSPORT_CHANNEL, "\tFinished reciving Message\n");
+          dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
+
+          //update last sent
+          if (curConection->lastSent == 0) {curConection->lastSent = 1;}
+          else{curConection->lastSent = 0;}
+
+          //update last ack
+          if (curConection->lastAck == 0) {curConection->lastAck = 1;}
+          else{curConection->lastAck = 0;}
+
+          //Make the ACK packet to send
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySegment->Dest_Port,            //uint8_t src
+                    mySegment->Src_Port,             //uint8_t des
+                    ACK,                             //uint8_t flag
+                    curConection->lastSent,          //uint8_t seq
+                    curConection->lastAck,           //uint8_t ack
+                    0,                               //uint8_t HdrLen
+                    1,                               //uint8_t advertised_window
+                    Empty,                           //uint8_t* payload
+                    0);                              //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE          
+          //add to timer for retransmission
+          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
+          return SUCCESS;
+        }
+        else if(mySegment->Flags == FIN){
+          curConection-> state = CLOSE_WAIT;
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    curConection->src,
+                    curConection->dest.port,                    //uint8_t des //not sure
+                    ACK,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
+          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
+          //call timer first or after?
+          call Transport.close(curConection->src); 
+          //timer? or command most likey command
+        }
+        else if(mySegment->Flags == RESET){}
+        else if(mySegment->Flags == URG){}
+        else return FAIL;
+        break; 
+      case LAST_ACK:
+        if(mySegment->Flags == URG){}
+        if(mySegment->Flags == ACK){
+
+          curConection->state=CLOSED;
+          dbg(TRANSPORT_CHANNEL, "CLOSED FROM CASE LAST ACK AND STATE ACK \n");
+
+        }
+        if(mySegment->Flags == PUSH){}
+        if(mySegment->Flags == RESET){}
+        if(mySegment->Flags == SYN){}
+        if(mySegment->Flags == FIN){
+
+        curConection-> state = LAST_ACK;
+        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    curConection->src,
+                    curConection->dest.port,                    //uint8_t des //not sure
+                    ACK,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
+         //call timer
+        //send packet
+        //edit sender
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
+        curConection->state = TIME_WAIT;
+        //timer 
+        curConection-> state = CLOSED; 
+        dbg(TRANSPORT_CHANNEL, "TIME TURNED TO CLOSED \n");
+        }
+        break; 
+      case TIME_WAIT:
+        if(mySegment->Flags == URG){}
+        if(mySegment->Flags == ACK){}
+        if(mySegment->Flags == PUSH){}
+        if(mySegment->Flags == RESET){}
+        if(mySegment->Flags == SYN){}
+        if(mySegment->Flags == FIN){}
+        break; 
+
+      default:
+          dbg(TRANSPORT_CHANNEL, "FLAG_ERROR: \"%d\" does not match any known commands.\n", mySegment->Flags);
+          return FAIL;
+          break;
+      }
+      return FAIL;
+    }
+
+   /**
+    * Read from the socket and write this data to the buffer. This data
+    * is obtained from your TCP implimentation.
+    * @param
+    *    socket_t fd: file descriptor that is associated with the socket
+    *       that is attempting a read.
+    * @param
+    *    uint8_t *buff: the buffer that is being written.
+    * @param
+    *    uint16_t bufflen: the amount of data that can be written to the
+    *       buffer.
+    * @Side For your project, only server side. This could be both though.
+    * @return uint16_t - return the amount of data you are able to read
+    *    from the pass buffer. This may be shorter then bufflen
+    */
+  command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen){
+    uint8_t buffSize;
+    socket_store_t * socketHolder =  call Connections.getPointer(fd);
+
+    dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
+    for(buffSize=0; socketHolder->sendBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
+
+    strcat((socketHolder->rcvdBuff), buff);
+
+    if (socketHolder->lastRead == 0) {socketHolder->lastRead = 1;}
+    else{socketHolder->lastRead = 0;}
+    if (socketHolder->nextExpected == 0) {socketHolder->nextExpected = 1;}
+    else{socketHolder->nextExpected = 0;}
+
+    return 1; // for warning
+   }
+
+  // mask a task for this
+  command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
+    //This is set up for stop and wait 
+    socket_store_t * socketHolder ;
+
+    if (!(call Connections.contains(fd))) return FAIL;
+
+    socketHolder = call Connections.getPointer(fd);
+
+    switch (socketHolder->state) { 
+      case CLOSED: 
+        socketHolder->state = SYN_SENT; //Change the state of the socket
+        
+        //Make the packet to send
+        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    socketHolder->src,             //uint8_t src
+                    addr->port,                    //uint8_t des
+                    SYN,                           //uint8_t flag
+                    0,                             //uint8_t seq
+                    0,                             //uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                         //uint8_t* payload
+                    0);                            //uint8_t length
+        makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+
+        //save a copy of the packet to posibly be sent by a timmer
+
+        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(addr->addr));
+        return SUCCESS;
+        break;  
+      case LISTEN:
+        dbg(TRANSPORT_CHANNEL,"Socket is already listening\n");
+        return FAIL;
+        break;
+      default:
+          dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", socketHolder->state);
+          return FAIL;
+          break;
+    }
+  }
+
+   /**
+    * Closes the socket.
+    * @param
+    *    socket_t fd: file descriptor that is associated with the socket
+    *       that you are closing. 
+    * @side Client/Server
+    * @return socket_t - returns SUCCESS if you are able to attempt
+    *    a closure with the fd passed, else return FAIL.
+    */
+   command error_t Transport.close(socket_t fd)
+   {
+      socket_store_t * mySocket;
+      dbg(TRANSPORT_CHANNEL, "Called Transport.close()\n");
+      
+      if (!(call Connections.contains(fd))) return FAIL;
+
+      mySocket = call Connections.getPointer(fd);
+
+      switch (mySocket->state){
+        case CLOSED:
+          dbg(TRANSPORT_CHANNEL, "Already closed \n");
+          return FAIL;
+          break;
+        case LISTEN: case SYN_SENT:
+          mySocket->state = CLOSED;
+          dbg(TRANSPORT_CHANNEL, "Socket State: (LISTEN | SYN_SENT) -> CLOSED\n");
+          return SUCCESS;
+          break;
+        case ESTABLISHED: //Starts the close
+        //sudo Code:
+          //Set state
+          //Send packet
+          //Set timmer
+
+          mySocket->state = FIN_WAIT_1;
+          // mySocket->dest.port= myTcpHeader->Src_Port; //ask if necessary
+          // mySocket->dest.addr= myPacket->src; //ask if necessary
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySocket->src,
+                    mySocket->dest.port,                    //uint8_t des //not sure
+                    FIN,                           //uint8_t flag
+                    1,                             //uint8_t seq
+                    1, //socketHolder->nextExpected///uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                            //uint8_t* payload
+                    0);                            //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
+          //call timer
+          //send packet
+          //edit sender
+          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->dest.addr));
+          return SUCCESS;
+          break;
+        //make timer that checks if the packets of the payload are done sending, wait APP, research to know when it's done, timer or a command
+        case CLOSE_WAIT: //changes wait to FIN WAIT 2 flag fin
+        //sudo Code:
+          //Set state
+          //Send packet
+          //Set timmer
+          dbg(TRANSPORT_CHANNEL, "In close CLOSE_WAIT \n");
+          mySocket-> state = LAST_ACK;
+          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
+                    mySocket->src,
+                    mySocket->dest.port,           //uint8_t des
+                    FIN,                           //uint8_t flag
+                    1, //myTcpHeader->Seq_Num,     //uint8_t seq
+                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
+                    0,                             //uint8_t HdrLen
+                    1,                             //uint8_t advertised_window
+                    Empty,                         //uint8_t* payload
+                    0);                            //uint8_t length
+          makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
+          //call timer
+          //send packet
+          //edit sender
+          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->dest.addr));
+          return SUCCESS;
+          break;
+        default:
+        dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", mySocket->state);
+          return FAIL;
+          break;
+      }
+    }
+
+   /**
+    * A hard close, which is not graceful. This portion is optional.
+    * @param
+    *    socket_t fd: file descriptor that is associated with the socket
+    *       that you are hard closing. 
+    * @side Client/Server
+    * @return socket_t - returns SUCCESS if you are able to attempt
+    *    a closure with the fd passed, else return FAIL.
+    */
+   //command error_t Transport.release(socket_t fd);
+
+  command error_t Transport.listen(socket_t fd){
+    socket_store_t * socketHolder ;
+    if (!(call Connections.contains(fd))) return FAIL;
+    socketHolder = call Connections.getPointer(fd);
+    if(socketHolder->state == LISTEN){
+      dbg(TRANSPORT_CHANNEL,"Socket is already listening\n");
+      return FAIL;
+    }
+    else{
+      dbg (TRANSPORT_CHANNEL, "Change Socket State from %d to Listen:%d\n",socketHolder->state, LISTEN);
+      socketHolder->state = LISTEN;
+      return SUCCESS;
+    }
   }
 
   event void sendDataTimer.fired(){
     sendData();
   }
-
   void sendDataDone(error_t err){
     if(err == SUCCESS){
       socket_store_t * socketHolder;
@@ -205,6 +682,7 @@ module TransportP{
       if(size == 0 || i == size ){
         dbg(TRANSPORT_CHANNEL,"Data Timer Stoped\n");
         call sendDataTimer.stop();
+        return;
       }
 
       dbg(TRANSPORT_CHANNEL," ATTEMPTING TO SEND DATA\n");
@@ -217,8 +695,7 @@ module TransportP{
         
         dbg(TRANSPORT_CHANNEL,"socketHolder->sendBuff %s\n",socketHolder->sendBuff );
 
-
-        if(socketHolder->state == ESTABLISHED &&
+        if((socketHolder->state & (ESTABLISHED | FIN_WAIT_2) )&&
           socketHolder->lastSent == socketHolder->lastAck &&
           socketHolder->sendBuff != '\0')
           { //if true send data
@@ -288,555 +765,13 @@ module TransportP{
     return SUCCESS;
   }
 
-   /**
-    * This will pass the packet so you can handle it internally. 
-    * @param
-    *    pack *package: the TCP packet that you are handling.
-    * @Side Client/Server 
-    * @return uint16_t - return SUCCESS if you are able to handle this
-    *    packet or FAIL if there are errors.
-    */
-
-  command error_t Transport.receive(pack* package){
-    pack* myMsg=(pack*) package;
-      tcpHeader* mySegment = (tcpHeader*) myMsg->payload;
-      socket_store_t * curConection = call Connections.getPointer(mySegment->Dest_Port);
-
-      dbg(TRANSPORT_CHANNEL, "Transport.receive() Called\n");
-
-
-      // if(curConection->nextExpected != mySegment->Seq_Num){
-      //   dbg(TRANSPORT_CHANNEL, "Recived packet with unexpected SEQ #\n");
-      //   return FAIL;
-
-      // }
-
-      //put some checks here
-
-      //check if the ack of the packet is the expected ack
-      
-      dbg(TRANSPORT_CHANNEL, "STATE: %d \n",curConection->state);
-
-      switch (curConection->state) { 
-      case CLOSED: //Don't know what do do with it yet
-        break;  
-      case LISTEN:
-        dbg(TRANSPORT_CHANNEL, "Transport Called Listen\n");
-        if(mySegment->Flags == URG){}
-        else if(mySegment->Flags == ACK){} //DONT USE
-        else if(mySegment->Flags == PUSH){} //I DONT KNOW
-        else if(mySegment->Flags == RESET){}
-        else if(mySegment->Flags == SYN){
-          call Transport.accept(curConection->src, myMsg);
-          return SUCCESS;
-        } //<- the main one
-        else if(mySegment->Flags == FIN){} //I DONT KNOW
-        else{}//Wrong info
-        
-        break;                
-      case SYN_SENT:
-            //put some checks here
-        if(mySegment->Flags & ( SYN | ACK )) {
-          //stop timmer
-            //change the state of the socket to established
-          curConection->state = ESTABLISHED;
-          curConection->lastRcvd = mySegment->Seq_Num;
-          curConection->lastSent = 1;
-          curConection->nextExpected = 1;
-          curConection->effectiveWindow = mySegment->Advertised_Window;
-            //curConection.RTT = call LocalTime.get() - tempSocket.RTT + 10;
-
-
-        //Make the packet to send
-        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySegment->Dest_Port,             //uint8_t src
-                    mySegment->Src_Port,    //??                //uint8_t des
-                    ACK,                           //uint8_t flag
-                    1,                             //uint8_t seq
-                    1, /*socketHolder->nextExpected*///uint8_t ack
-                    0,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
-
-        //save a copy of the packet to posibly be sent by a timmer
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
-        return SUCCESS;
-          //optionally do some RTT stuff here
-          
-          //send out inital ack
-
-          //set timmer
-
-          //call to start sending packets from que.
-
-
-        }
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == FIN){}
-        break; 
-      case SYN_RCVD:
-                      //put some checks here
-        if(mySegment->Flags & ( SYN | ACK )) {
-          //stop timmer
-          //change the state of the socket to established
-          curConection->state = ESTABLISHED;
-
-          curConection->lastAck = 1;
-          curConection->lastRcvd = mySegment->Seq_Num;
-          curConection->nextExpected = 0;
-
-          //Make the packet to send
-          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySegment->Dest_Port,             //uint8_t src
-                    mySegment->Src_Port,    //??                //uint8_t des
-                    ACK,                           //uint8_t flag
-                    1,                             //uint8_t seq
-                    1, /*socketHolder->nextExpected*///uint8_t ack
-                    0,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
-
-        //save a copy of the packet to posibly be sent by a timmer
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
-        return SUCCESS;
-        }
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == FIN){}
-        break; 
-      case ESTABLISHED:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){
-          curConection->lastAck = mySegment->Acknowledgment;
-          curConection->lastRcvd = mySegment->Seq_Num;
-          if(mySegment->Len == 0){ //this is a normal ack pack
-
-            //update socket
-          }
-          else{ // has data          
-          curConection->effectiveWindow = mySegment->Advertised_Window;
-          call Transport.read(curConection->src, mySegment->payload, mySegment->Len);
-          //store pack for resend
-
-          //send back an ack packet
-
-          }
-
-
-          //if the packet has a len of 0
-
-          //change ack for socket
-          curConection->lastAck = mySegment->Acknowledgment;
-          
-          //curConection->nextExpected = ;
-
-          //if you have data to send, send it else just send normal ack packet
-        }
-        if(mySegment->Flags == PUSH){
-            //update socket
-          //read the packet 
-            dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
-
-          call Transport.read(curConection->src, mySegment->payload, mySegment->Len);
-          
-          //print out entire buffer
-          dbg(TRANSPORT_CHANNEL, "\tFinished reciving Message\n");
-          dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
-
-          //update last sent
-          if (curConection->lastSent == 0) {curConection->lastSent = 1;}
-          else{curConection->lastSent = 0;}
-
-          //Make the ACK packet to send
-          makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySegment->Dest_Port,             //uint8_t src
-                    mySegment->Src_Port,    //??                //uint8_t des
-                    ACK,                           //uint8_t flag
-                    curConection->lastSent,                             //uint8_t seq
-                    1, /*socketHolder->nextExpected*///uint8_t ack
-                    0,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-          makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE          
-          
-          call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(myMsg->src));
-          return SUCCESS;
-
-        }
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){
-          dbg(TRANSPORT_CHANNEL, "In state ESTABLISHED, in flag FIN \n");
-           curConection-> state = CLOSE_WAIT;
-                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    curConection->src,
-                    curConection->dest.port,                    //uint8_t des //not sure
-                    ACK,                           //uint8_t flag
-                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
-                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
-                    1,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
-        //call timer first or after?
-        call Transport.close(curConection->src); 
-        //timer? or command most likey command
-        
-        }
-        break; 
-      case CLOSE_WAIT:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){
-//------------------------------------------------------------------------------------------------------------------------
-        curConection-> state = FIN_WAIT_2; // set up a timer? if there is nothing to send go! still sending stuff, stay in this place. change it once it's done sending
-        break;
-//-------------------------------------------------------------------------------------------------------------------------
-
-        }
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
-        break; 
-      case LAST_ACK:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){
-
-          curConection->state=CLOSED;
-          dbg(TRANSPORT_CHANNEL, "CLOSED FROM CASE LAST ACK AND STATE ACK \n");
-
-        }
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){
-
-        curConection-> state = LAST_ACK;
-                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    curConection->src,
-                    curConection->dest.port,                    //uint8_t des //not sure
-                    ACK,                           //uint8_t flag
-                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
-                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
-                    1,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
-         //call timer
-        //send packet
-        //edit sender
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
-        curConection->state = TIME_WAIT;
-        //timer 
-        curConection-> state = CLOSED; 
-        dbg(TRANSPORT_CHANNEL, "TIME TURNED TO CLOSED \n");
-        }
-        break; 
-      case FIN_WAIT_1:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){ // need to add case for normal packets
-        //this is just for the close
-          curConection ->state = FIN_WAIT_2;
-          //...
-
-
-        }
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){
-
-//---------------------------------------------------------------------------------------------------------------------
-         // state in curConnection is CLOSE_WAIT
- //----------------------------------------------------------------------------------------------------------------------------------      
-        }
-        break; 
-      case FIN_WAIT_2:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){
-          curConection-> state = TIME_WAIT;
-                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    curConection->src,
-                    curConection->dest.port,                    //uint8_t des //not sure
-                    ACK,                           //uint8_t flag
-                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
-                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
-                    1,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, curConection, PACKET_MAX_PAYLOAD_SIZE);
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(curConection->dest.addr));
-        //set a timer that eventually closes the socket
-        }
-        break; 
-      case CLOSING:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
-        break; 
-      case TIME_WAIT:
-        if(mySegment->Flags == URG){}
-        if(mySegment->Flags == ACK){}
-        if(mySegment->Flags == PUSH){}
-        if(mySegment->Flags == RESET){}
-        if(mySegment->Flags == SYN){}
-        if(mySegment->Flags == FIN){}
-        break; 
-
-      default:
-          dbg(TRANSPORT_CHANNEL, "FLAG_ERROR: \"%d\" does not match any known commands.\n", mySegment->Flags);
-          return FAIL;
-          break;
-      }
-      return FAIL;
-    }
-
-   /**
-    * Read from the socket and write this data to the buffer. This data
-    * is obtained from your TCP implimentation.
-    * @param
-    *    socket_t fd: file descriptor that is associated with the socket
-    *       that is attempting a read.
-    * @param
-    *    uint8_t *buff: the buffer that is being written.
-    * @param
-    *    uint16_t bufflen: the amount of data that can be written to the
-    *       buffer.
-    * @Side For your project, only server side. This could be both though.
-    * @return uint16_t - return the amount of data you are able to read
-    *    from the pass buffer. This may be shorter then bufflen
-    */
-  command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen){
-    uint8_t buffSize;
-    socket_store_t * socketHolder =  call Connections.getPointer(fd);
-
-    dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
-    for(buffSize=0; socketHolder->sendBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
-
-    strcat((socketHolder->rcvdBuff), buff);
-
-    if (socketHolder->lastRead == 0) {socketHolder->lastRead = 1;}
-    else{socketHolder->lastRead = 0;}
-    if (socketHolder->nextExpected == 0) {socketHolder->nextExpected = 1;}
-    else{socketHolder->nextExpected = 0;}
-
-    return 1; // for warning
-   }
-
-  command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
-    //This is set up for stop and wait 
-    socket_store_t * socketHolder ;
-
-    if (!(call Connections.contains(fd)))
-      return FAIL;
-
-    socketHolder = call Connections.getPointer(fd);
-
-    if(socketHolder->state == LISTEN){
-      dbg(TRANSPORT_CHANNEL,"Socket is already listening\n");
-      return FAIL;
-    }
-
-    switch (socketHolder->state) { 
-      case CLOSED: 
-        socketHolder->state = SYN_SENT; //Change the state of the socket
-
-        //the way it is currently writen assumes instant send
-        //we may want to change this to be sent by a que system
-        
-        //Make the packet to send
-        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    socketHolder->src,             //uint8_t src
-                    addr->port,                    //uint8_t des
-                    SYN,                           //uint8_t flag
-                    0,                             //uint8_t seq
-                    0, /*socketHolder->nextExpected*///uint8_t ack
-                    0,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
-
-        //save a copy of the packet to posibly be sent by a timmer
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(addr->addr));
-        return SUCCESS;
-
-        break;  
-      case LISTEN:             
-      case SYN_SENT:
-      case SYN_RCVD:
-      case ESTABLISHED:
-      case CLOSE_WAIT:
-      case LAST_ACK:
-      case FIN_WAIT_1:
-      case FIN_WAIT_2: 
-      case CLOSING:
-      case TIME_WAIT:
-      default:
-          dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", socketHolder->state);
-          return FAIL;
-          break;
-    }
-  }
-
-   /**
-    * Closes the socket.
-    * @param
-    *    socket_t fd: file descriptor that is associated with the socket
-    *       that you are closing. 
-    * @side Client/Server
-    * @return socket_t - returns SUCCESS if you are able to attempt
-    *    a closure with the fd passed, else return FAIL.
-    */
-   command error_t Transport.close(socket_t fd)
-   {
-     
-      socket_store_t * mySocket;
-      dbg(TRANSPORT_CHANNEL, "In close function, line 711 in TransportP \n");
-      //tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
-      
-      if (!(call Connections.contains(fd)))
-      {
-      return FAIL;
-      }
-      else{
-        mySocket = call Connections.getPointer(fd);
-
-        switch (mySocket->state){
-        
-        case CLOSED:
-        dbg(TRANSPORT_CHANNEL, "Already closed \n");
-        return FAIL;
-        break;
-        
-        case LISTEN: //nothing
-        mySocket->state = CLOSED;
-        dbg(TRANSPORT_CHANNEL, "Socket that had listen is now closed \n");
-        return SUCCESS;
-        break;
-        case SYN_SENT: //nothing
-        case SYN_RCVD: //nothing
-        case ESTABLISHED: //good
-        //APPPARANTLY not used here
-        dbg(TRANSPORT_CHANNEL, "In close ESTABLISHED \n");
-        mySocket->state = FIN_WAIT_1;
-       // mySocket->dest.port= myTcpHeader->Src_Port; //ask if necessary
-       // mySocket->dest.addr= myPacket->src; //ask if necessary
-        
-                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySocket->src,
-                    mySocket->dest.port,                    //uint8_t des //not sure
-                    FIN,                           //uint8_t flag
-                    1,                             //uint8_t seq
-                    1, //socketHolder->nextExpected///uint8_t ack
-                    1,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
-         //call timer
-        //send packet
-        //edit sender
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->dest.addr));
-        
-        return SUCCESS;
-        break;
-        
-        //make timer that checks if the packets of the payload are done sending, wait APP, research to know when it's done, timer or a command
-        case CLOSE_WAIT: //changes wait to FIN WAIT 2 flag fin
-        dbg(TRANSPORT_CHANNEL, "In close CLOSE_WAIT \n");
-                    mySocket-> state = LAST_ACK;
-
-                    makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    mySocket->src,
-                    mySocket->dest.port,                    //uint8_t des //not sure
-                    FIN,                           //uint8_t flag
-                    1, //myTcpHeader->Seq_Num,                             //uint8_t seq
-                    1, //myTcpHeader->Seq_Num, //socketHolder->nextExpected///uint8_t ack
-                    1,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                            //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, mySocket, PACKET_MAX_PAYLOAD_SIZE);
-         //call timer
-        //send packet
-        //edit sender
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(mySocket->dest.addr));
-
-        return SUCCESS;
-        break;
-        //------------------------------------------------------------------------------------------------
-        case LAST_ACK:
-        case FIN_WAIT_1:         
-        case FIN_WAIT_2: //flag fin, state fin_wait_2
-        case CLOSING:
-        case TIME_WAIT:
-        default:
-        dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", mySocket->state);
-          return FAIL;
-          break;
-
-
-      }
-    }
-
-
-   }
-
-   /**
-    * A hard close, which is not graceful. This portion is optional.
-    * @param
-    *    socket_t fd: file descriptor that is associated with the socket
-    *       that you are hard closing. 
-    * @side Client/Server
-    * @return socket_t - returns SUCCESS if you are able to attempt
-    *    a closure with the fd passed, else return FAIL.
-    */
-   //command error_t Transport.release(socket_t fd);
-
-  command error_t Transport.listen(socket_t fd){
-    socket_store_t * socketHolder ;
-    if (!(call Connections.contains(fd)))
-      return FAIL;
-    socketHolder = call Connections.getPointer(fd);
-    if(socketHolder->state == LISTEN){
-      dbg(TRANSPORT_CHANNEL,"Socket is already listening\n");
-      return FAIL;
-    }
-    else{
-      dbg (TRANSPORT_CHANNEL, "Change Socket State from %d to Listen:%d\n",socketHolder->state, LISTEN);
-      socketHolder->state = LISTEN;
-      return SUCCESS;
-    }
-  }
-
-
   event void sendPacketTimer.fired(){
     sendPacket();
   }
 
   void sendPacketDone(error_t err){
     if(err == SUCCESS){
-    
+    //Fill this in
     }
   }//end of: void sendPacketDone(error_t err)
 
