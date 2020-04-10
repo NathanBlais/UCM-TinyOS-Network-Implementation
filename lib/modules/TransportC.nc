@@ -25,6 +25,9 @@ implementation {
 	components new HashmapC(socket_store_t, MAX_NUM_OF_SOCKETS) as Connections;
     TransportP.Connections->Connections;
 
+	components new TimerMilliC(), LocalTimeMilliC;
+    TransportP.LocalTime -> LocalTimeMilliC;
+
 	components new TimerMilliC() as sendPacketTimer;
     TransportP.sendPacketTimer -> sendPacketTimer;
 

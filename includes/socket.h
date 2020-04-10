@@ -34,13 +34,6 @@ typedef nx_struct socket_addr_t{
 // File descripter id. Each id is associated with a socket_store_t
 typedef uint8_t socket_t;
 
-enum {
-  /* how many timer tics to stay in TIME_WAIT */
-  TIMEWAIT_LEN = 1,
-  //2MSL = 4,
-  /* how many un-acked retransmissions before we give up the connection */
-  GIVEUP = 6,
-};
 
 
 typedef struct socket_store_t{ //(TCB) - Transmission Control Block
@@ -69,9 +62,9 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 
     // This is the sender portion.
     uint8_t sendBuff[SOCKET_BUFFER_SIZE];
-    uint8_t lastWritten;    //packet sequence number allowed for new data transmission
+    uint8_t lastWritten;    //  sequence numbers allowed for new data transmission
     uint8_t lastSent;       // SND.UNA - last sent data that is not acknowledged yet
-    uint8_t lastAck;        //last ack sent
+    uint8_t lastAck;        // old sequence numbers which have been acknowledged
 
 /*
     Receive Sequence Space
@@ -87,18 +80,20 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 */
     // This is the receiver portion
     uint8_t rcvdBuff[SOCKET_BUFFER_SIZE];
-    uint8_t lastRead; //last packet put into the buffer
+    uint8_t lastRead; //last packet put into the buffer 1
+    uint8_t nextExpected; //next packet expected        2
     uint8_t lastRcvd; //largest packet recived
-    uint8_t nextExpected; //next packet expected
 
-    uint16_t RTT;
     uint8_t effectiveWindow;
 
-    /* retransmission counter */
-    uint16_t reTransCnt;
+    uint16_t TTD; //Time To Die
 
-    pack LastSentIPpackage;
+    uint16_t RTT;
+    uint16_t lastTimeSent; //Time the last packet was sent
+    uint16_t lastTimeRecived;
 
+    pack LastSentIPpack;
+    pack LastRecivedIPpack;
 }socket_store_t;
 
 #endif

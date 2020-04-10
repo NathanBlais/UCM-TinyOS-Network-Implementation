@@ -24,14 +24,12 @@ module TransportP{
 
   uses interface Hashmap<socket_store_t> as Connections; // hash table: list of connections
 
+  uses interface LocalTime<TMilli>;
   uses interface Timer<TMilli> as sendPacketTimer;
   uses interface Timer<TMilli> as sendDataTimer;
 
   uses interface Queue<pack*>;
   uses interface Pool<pack>;
-
-  //make buffer to store last packet recived
-
 
  }
 
@@ -40,9 +38,8 @@ module TransportP{
     // Globals
 
     const socket_t NULLSocket = 0;
-    tcpHeader sendPackageTCP;
-    pack sendIPpackage;
-    uint8_t * Empty;
+    uint16_t * Empty;
+    uint16_t ipSeq = 1;
 
     // Prototypes
 
@@ -56,6 +53,7 @@ module TransportP{
     void makeTCPpack(tcpHeader *Package, uint8_t src, uint8_t dest, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t len, uint8_t ad_win, uint8_t* payload, uint8_t length);
     void makeIPpack(pack *Package, tcpHeader  *myTCPpack, socket_store_t *sock, uint8_t length);
     error_t receive(pack* package);
+    void send(socket_t socKey, uint8_t flag, uint8_t* payload, uint8_t length);
 
 
 
@@ -100,9 +98,9 @@ module TransportP{
     // This is the receiver portion
     TCB.lastRead = 0;
     TCB.lastRcvd = 0;
-    TCB.nextExpected = 0;
+    TCB.nextExpected = 1;
 
-    //TCB.RTT = 5000;  //NOTE:We Need to replace this value
+    TCB.RTT = 5000;  //NOTE:We Need to replace this value
     TCB.effectiveWindow = 1;  //NOTE:We Need to replace this value
 
     call Connections.insert(fd, TCB);
@@ -132,10 +130,11 @@ module TransportP{
         socketHolder->dest.port= myTcpHeader->Src_Port;
         socketHolder->dest.addr= myPacket->src;
 
-        //socketHolder->lastAck = myTcpHeader->Seq_Num;
         socketHolder->lastRcvd = myTcpHeader->Seq_Num;
         socketHolder->nextExpected = 1;
-
+        socketHolder->RTT = call LocalTime.get() + 1000000;
+        socketHolder->lastTimeSent = call LocalTime.get();
+ 
         makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
                     socketHolder->src,             //uint8_t src
                     socketHolder->dest.port,       //uint8_t des
@@ -198,6 +197,7 @@ module TransportP{
             }
         }
   }
+
   command error_t Transport.receive(pack* package){
     if(!call Pool.empty()){
       pack *input;
@@ -216,8 +216,6 @@ module TransportP{
     return FAIL;
   }
 
-
-
   error_t receive(pack* package){
     pack* myMsg=(pack*) package;
       tcpHeader* mySegment = (tcpHeader*) myMsg->payload;
@@ -227,7 +225,12 @@ module TransportP{
 
       //TO_DO: add check here to see if the packet has been seen before
 
-
+      if(curConection->LastRecivedIPpack.src != myMsg->src &&
+         curConection->LastRecivedIPpack.seq != myMsg->seq)  {
+            dbg(TRANSPORT_CHANNEL, "Recived Duplicate packet\n");
+            return FAIL;
+      }
+        
       if(curConection->nextExpected != mySegment->Seq_Num){
         dbg(TRANSPORT_CHANNEL, "Recived packet with unexpected SEQ #\n");
         return FAIL;
@@ -235,8 +238,10 @@ module TransportP{
 
       //put some checks here
 
-      //check if the ack of the packet is the expected ack
-      
+      //We should update lastRcvd here; 
+      curConection->lastRcvd = myTcpHeader->Seq_Num; //<-- update for sliding window
+
+
       dbg(TRANSPORT_CHANNEL, "STATE: %d | FLAG: %d\n", curConection->state, mySegment->Flags);
 
       switch (curConection->state) { 
@@ -504,37 +509,18 @@ module TransportP{
     else{socketHolder->nextExpected = 0;}
 
     return 1; // for warning
-   }
+  }
 
   // mask a task for this
   command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
-    //This is set up for stop and wait 
     socket_store_t * socketHolder ;
-
     if (!(call Connections.contains(fd))) return FAIL;
-
     socketHolder = call Connections.getPointer(fd);
-
-    switch (socketHolder->state) { 
+    switch (socketHolder->state)
+    { 
       case CLOSED: 
-        socketHolder->state = SYN_SENT; //Change the state of the socket
-        
-        //Make the packet to send
-        makeTCPpack(&sendPackageTCP,               //tcp_pack *Package
-                    socketHolder->src,             //uint8_t src
-                    addr->port,                    //uint8_t des
-                    SYN,                           //uint8_t flag
-                    0,                             //uint8_t seq
-                    0,                             //uint8_t ack
-                    0,                             //uint8_t HdrLen
-                    1,                             //uint8_t advertised_window
-                    Empty,                         //uint8_t* payload
-                    0);                            //uint8_t length
-        makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
-
-        //save a copy of the packet to posibly be sent by a timmer
-
-        call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(addr->addr));
+        socketHolder->state = SYN_SENT; //Change the state of the socket     
+        send(fd, SYN, Empty, 0){
         return SUCCESS;
         break;  
       case LISTEN:
@@ -548,7 +534,7 @@ module TransportP{
     }
   }
 
-   /**
+  /**
     * Closes the socket.
     * @param
     *    socket_t fd: file descriptor that is associated with the socket
@@ -557,8 +543,8 @@ module TransportP{
     * @return socket_t - returns SUCCESS if you are able to attempt
     *    a closure with the fd passed, else return FAIL.
     */
-   command error_t Transport.close(socket_t fd)
-   {
+  command error_t Transport.close(socket_t fd)
+  {
       socket_store_t * mySocket;
       dbg(TRANSPORT_CHANNEL, "Called Transport.close()\n");
       
@@ -632,7 +618,7 @@ module TransportP{
           return FAIL;
           break;
       }
-    }
+  }
 
    /**
     * A hard close, which is not graceful. This portion is optional.
@@ -754,12 +740,10 @@ module TransportP{
       }
     }
   }//end of: void sendDataDone(error_t err)
-
   task void sendDataTask(){
 
     sendDataDone(SUCCESS);
   }
-
   error_t sendData(){
     post sendDataTask();
     return SUCCESS;
@@ -768,42 +752,78 @@ module TransportP{
   event void sendPacketTimer.fired(){
     sendPacket();
   }
-
-  void sendPacketDone(error_t err){
-    if(err == SUCCESS){
-    //Fill this in
+  void sendPacketDone(error_t err){ //assuming that this is for stop and wait.
+    uint8_t i;
+    if(err == FAIL){
+      return;
+    }
+    for(i = 0; i < MAX_NUM_OF_SOCKETS; i++) {
+      if((call Connections.getPointer(i))->TTD < (call LocalTime.get())){//if true either reset or close the connnection
+          //Fill in here
+          return;
+      }
+      if((call Connections.getPointer(i))->RTT < call LocalTime.get() && (call Connections.getPointer(i))->lastSent != (call Connections.getPointer(i))->lastAck) { //if TRUE retransmit
+          dbg(TRANSPORT_CHANNEL, "Retransmitting\n");
+          call Sender.send((call Connections.getPointer(i))->LastSentIPpack, call DistanceVectorRouting.GetNextHop((call Connections.getPointer(i))->dest.addr));
+      }
     }
   }//end of: void sendPacketDone(error_t err)
-
   task void sendPackeTask(){
 
     sendPacketDone(SUCCESS);
   }
-
   error_t sendPacket(){
     post sendDataTask();
     return SUCCESS;
   }
 
 
-  void makeTCPpack(tcpHeader *Package, uint8_t src, uint8_t dest, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t len, uint8_t ad_win, uint8_t* payload, uint8_t length){
+
+  void send(socket_t socKey, uint8_t flag, uint8_t* payload, uint8_t length){
+      tcpHeader sendPackageTCP;
+      pack sendIPpackage;
+      socket_store_t * socketHolder = call Connections.get(socKey);
+
+      //Should be replaced when we do sliding window ///////////////////////////
+      if (socketHolder->lastSent == 0) {socketHolder->lastSent = 1;}          //
+      else{socketHolder->lastSent = 0;}                                       //
+      //\\      //\\      //\\      //\\      //\\      //\\      //\\      //\\ 
+
+      makeTCPpack(&sendPackageTCP,           //tcp_pack *Package
+                  curSocket->src,            //uint8_t src
+                  curSocket->dest.port,      //uint8_t des
+                  flag,                      //uint8_t flag
+                  socketHolder->lastSent,    //uint8_t seq
+                  socketHolder->nextExpected,//uint8_t ack //update this later //nextExpected should be based on the last recived 
+                  length,                    //uint8_t HdrLen
+                  socketHolder->effectiveWindow,//uint8_t advertised_window  <- should use this equastion (lastSent - lastAck)
+                  payload,                   //uint8_t* payload
+                  length);                   //uint8_t length
+      makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+      ipSeq = ipSeq++;
+
+      call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
+
+      //save a copy of the packet to be re-sent by a timmer and set RTT & TTD lastTimeSent
+
+    }
+
+  void makeTCPpack(tcpHeader *Package, uint8_t src, uint8_t dest, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t ad_win, uint8_t* payload, uint8_t length){
     Package->Src_Port = src;
     Package->Dest_Port = dest;
     Package->Flags = flag;
     Package->Seq_Num = seq;
     Package->Acknowledgment = ack;
-
-    Package->Len = len;
-
+    Package->Len = length;
     Package->Advertised_Window = ad_win;
     memcpy(Package->payload, payload, length);
   }
 
-  void makeIPpack(pack *Package, tcpHeader  *myTCPpack, socket_store_t *sock, uint8_t length){
-    Package->src = (uint8_t)TOS_NODE_ID;
+  void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length){
+    Package->src = (uint16_t)TOS_NODE_ID;
     Package->dest = sock->dest.addr;
     Package->TTL = MAX_TTL;
-    Package->seq = sock->lastSent; //finish this
+    Package->seq = ipSeq; //finish this
     Package->protocol = PROTOCOL_TCP;
     memcpy(Package->payload, myTCPpack, length);
   }
