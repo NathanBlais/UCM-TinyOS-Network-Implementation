@@ -36,7 +36,6 @@ implementation {
 
     //NOTE: wire timmers 
 
-
 	//Lists
    	components new PoolC(pack, 100);
    	components new QueueC(pack*, 100);
@@ -44,6 +43,11 @@ implementation {
    	TransportP.Pool -> PoolC;
    	TransportP.Queue -> QueueC;
 
+	components new PoolC(sendTCPInfo, 10) as SPool;
+   	components new QueueC(sendTCPInfo*, 10) as SQueue;
+
+   	TransportP.SendPool -> SPool;
+   	TransportP.SendQueue -> SQueue;
 
 
 }

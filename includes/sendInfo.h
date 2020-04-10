@@ -4,6 +4,7 @@
 #define PACK_BUFFER_H
 
 #include "packet.h"
+#include "socket.h"
 
 enum{
 	SEND_BUFFER_SIZE=128
@@ -20,6 +21,13 @@ typedef struct reciveInfo{
 	pack payload;
 	uint8_t len;
 }reciveInfo;
+
+typedef struct sendTCPInfo{
+	socket_t socKey;
+	uint8_t flag;
+	pack payload;
+	uint8_t length;
+}sendTCPInfo;
 
 typedef struct neighbor {
 		uint16_t id;
