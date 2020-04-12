@@ -79,7 +79,7 @@ interface Transport{
     * @return uint16_t - return SUCCESS if you are able to handle this
     *    packet or FAIL if there are errors.
     */
-   command error_t receive(pack* package);
+   command error_t receiveBuffer(pack* package);
 
    /**
     * Read from the socket and write this data to the buffer. This data
@@ -96,7 +96,8 @@ interface Transport{
     * @return uint16_t - return the amount of data you are able to read
     *    from the pass buffer. This may be shorter then bufflen
     */
-   command uint16_t read(socket_t fd, uint8_t *buff, uint16_t bufflen);
+    
+   command uint16_t read(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
 
    /**
     * Attempts a connection to an address.
@@ -111,6 +112,8 @@ interface Transport{
     *    a connection with the fd passed, else return FAIL.
     */
    command error_t connect(socket_t fd, socket_addr_t * addr);
+
+   //event void connectDone(error_t e); <- might be a good idea
 
    /**
     * Closes the socket.

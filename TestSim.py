@@ -205,8 +205,8 @@ def main():
     # s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestClient(1,8,6,10, "Hello, bozo"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
     s.runTime(150);
-    s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
-    s.runTime(200);
+    # s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
+    # s.runTime(200);
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);

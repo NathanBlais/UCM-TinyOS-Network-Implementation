@@ -41,7 +41,8 @@ typedef struct tcpHeader{
 	uint8_t Seq_Num;		//Sequence Number	- which byte chunk is being sent
 	uint8_t Acknowledgment;		//ACK - next byte expected (seq + 1)
 	uint8_t Len; 				//Data Offset
-	unsigned int Flags: 3;
+	//unsigned int Flags: 3;
+	unsigned int Flags: 6;
 	uint8_t Advertised_Window;	// buffer size
 	//uint8_t Checksum; //optional
 	//uint8_t UrgPtr; //optional
@@ -49,13 +50,22 @@ typedef struct tcpHeader{
 
 }tcpHeader;
 
+
 //Flags for TCP
-#define URG 0  //signifies that this segment contains urgent data.
-#define ACK 1  //is set any time the Acknowledgment field is valid, implying that the receiver should pay attention to it.
-#define PUSH 2 //signifies that the sender invoked the push operation, which indicates to the receiving side of TCP that it should notify the receiving process of this fact.
-#define RESET 3 //signifies that the receiver has become confused—for example, because it received a segment it did not expect to receive—and so wants to abort the connection.
-#define SYN 4  //-never carries payload data
-#define FIN 5  //-never carries payload data
+#define URG 0x1  //signifies that this segment contains urgent data.
+#define ACK 0x2  //is set any time the Acknowledgment field is valid, implying that the receiver should pay attention to it.
+#define PUSH 0x4 //signifies that the sender invoked the push operation, which indicates to the receiving side of TCP that it should notify the receiving process of this fact.
+#define RESET 0x8 //signifies that the receiver has become confused—for example, because it received a segment it did not expect to receive—and so wants to abort the connection.
+#define SYN 0x10 //16-never carries payload data
+#define FIN 0x20  //32-never carries payload data
+
+// //Flags for TCP
+// #define URG 0  //signifies that this segment contains urgent data.
+// #define ACK 1  //is set any time the Acknowledgment field is valid, implying that the receiver should pay attention to it.
+// #define PUSH 2 //signifies that the sender invoked the push operation, which indicates to the receiving side of TCP that it should notify the receiving process of this fact.
+// #define RESET 3 //signifies that the receiver has become confused—for example, because it received a segment it did not expect to receive—and so wants to abort the connection.
+// #define SYN 4  //-never carries payload data
+// #define FIN 5  //-never carries payload data
 
 /*
  * logPack

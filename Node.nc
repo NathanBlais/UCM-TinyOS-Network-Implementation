@@ -138,7 +138,7 @@ implementation{
 			dbg(GENERAL_CHANNEL, "Package Payload: %s\n", contents->payload);
       else if (PROTOCOL_TCP == contents->protocol)
       {
-         call Transport.receive(contents);
+         call Transport.receiveBuffer(contents);
       }
 		else
 			dbg(GENERAL_CHANNEL, "Recived packet with incorrect Protocol\n");

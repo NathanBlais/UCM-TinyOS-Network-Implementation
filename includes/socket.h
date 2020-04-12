@@ -18,7 +18,8 @@ enum socket_state{
     LAST_ACK     = 6,
     FIN_WAIT_1   = 7,
     FIN_WAIT_2   = 8,
-    TIME_WAIT    = 9
+    TIME_WAIT    = 9,
+    CLOSING      = 10
 };
 
 typedef nx_uint8_t nx_socket_port_t;
@@ -62,10 +63,11 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 
     // This is the sender portion.
     uint8_t sendBuff[SOCKET_BUFFER_SIZE];
-    uint8_t lastWritten;    //  sequence numbers allowed for new data transmission
-    uint8_t lastSent;       // SND.UNA - last sent data that is not acknowledged yet
-    uint8_t lastAck;        // old sequence numbers which have been acknowledged
+    uint8_t lastWritten;                        //sequence numbers allowed for new data transmission  <- handled by the writer
+    uint8_t lastSent;    //SND.UNA              //last sent data that is not acknowledged yet <- handled by the Sender
 
+    uint8_t lastAck;                            // old sequence numbers which have been acknowledged <- handled by the reciver
+    uint8_t nextSend;    //SND.NXT                       //sequence numbers allowed for new data transmission
 /*
     Receive Sequence Space
 
@@ -80,9 +82,9 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
 */
     // This is the receiver portion
     uint8_t rcvdBuff[SOCKET_BUFFER_SIZE];
-    uint8_t lastRead; //last packet put into the buffer 1
-    uint8_t nextExpected; //next packet expected        2
-    uint8_t lastRcvd; //largest packet recived
+    uint8_t lastRead;                   //          ??   sequence numbers which have been acknowledged
+    uint8_t nextExpected;   //RCV.NXT                //next packet expected<- handled by the reciver / window / sender?
+    uint8_t lastRcvd;       //ISS                    
 
     uint8_t effectiveWindow;
 

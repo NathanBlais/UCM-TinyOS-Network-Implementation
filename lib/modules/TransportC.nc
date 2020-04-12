@@ -28,11 +28,11 @@ implementation {
 	components new TimerMilliC(), LocalTimeMilliC;
     TransportP.LocalTime -> LocalTimeMilliC;
 
-	components new TimerMilliC() as sendPacketTimer;
-    TransportP.sendPacketTimer -> sendPacketTimer;
+	// components new TimerMilliC() as sendPacketTimer;
+    // TransportP.sendPacketTimer -> sendPacketTimer;
 
-	components new TimerMilliC() as sendDataTimer;
-    TransportP.sendDataTimer -> sendDataTimer;
+	// components new TimerMilliC() as sendDataTimer;
+    // TransportP.sendDataTimer -> sendDataTimer;
 
     //NOTE: wire timmers 
 
@@ -43,11 +43,11 @@ implementation {
    	TransportP.Pool -> PoolC;
    	TransportP.Queue -> QueueC;
 
-	components new PoolC(sendTCPInfo, 10) as SPool;
-   	components new QueueC(sendTCPInfo*, 10) as SQueue;
+	//components new PoolC(pack, 10) as SendPool;
+   	//components new QueueC(sendTCPInfo*, 10) as SendQueue;
 
-   	TransportP.SendPool -> SPool;
-   	TransportP.SendQueue -> SQueue;
+   	//TransportP.SendPool -> SendPool;
+   	//TransportP.SendQueue -> SendQueue;
 
 
 }
