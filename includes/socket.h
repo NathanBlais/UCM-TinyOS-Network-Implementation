@@ -67,7 +67,7 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
     uint8_t lastSent;    //SND.UNA              //last sent data that is not acknowledged yet <- handled by the Sender
 
     uint8_t lastAck;                            // old sequence numbers which have been acknowledged <- handled by the reciver
-    uint8_t nextSend;    //SND.NXT                       //sequence numbers allowed for new data transmission
+    //uint8_t nextSend;    //SND.NXT                       //sequence numbers allowed for new data transmission
 /*
     Receive Sequence Space
 
@@ -93,9 +93,6 @@ typedef struct socket_store_t{ //(TCB) - Transmission Control Block
     uint16_t RTT;
     uint16_t lastTimeSent; //Time the last packet was sent
     uint16_t lastTimeRecived;
-
-    pack LastSentIPpack;
-    pack LastRecivedIPpack;
 }socket_store_t;
 
 #endif

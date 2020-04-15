@@ -69,7 +69,9 @@ module TransportP{
     // Prototypes
 
     error_t receive(pack* package);
+    uint16_t readDataToBuff(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length);
+    
 
 
     error_t send_out(socket_t socKey, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length){
@@ -113,12 +115,13 @@ module TransportP{
         // else{socketHolder->nextExpected = 1;}    
 
         //save a copy of the packet to be re-sent by a timmer and set RTT & TTD lastTimeSent
-        socketHolder->RTT = (socketHolder->lastTimeRecived - socketHolder->lastTimeSent) + call LocalTime.get() + 300;
-        socketHolder->TTD = (socketHolder->RTT) * 3;
+        //socketHolder->RTT = (socketHolder->lastTimeRecived - socketHolder->lastTimeSent) + call LocalTime.get() + 300;
+        //socketHolder->TTD = (socketHolder->RTT) * 3;
         return SUCCESS;
 
     }
 
+    //should return the ammount of data written to the socket
     error_t send_buff(socket_t socKey, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length){
         send_out(socKey, flag, seq, ack, payload, length);
         return SUCCESS;
@@ -143,6 +146,7 @@ module TransportP{
     //      /*re-Queue the data for transmission 
     //       If no space to queue, respond with "error: insufficient
     //      resources".*/
+    //         break;
     //     case ESTABLISHED:
     //     case CLOSE_WAIT:
 
@@ -155,22 +159,20 @@ module TransportP{
 
     //      If the urgent flag is set, then SND.UP <- SND.NXT and set the
     //      urgent pointer in the outgoing segments.*/
-
+    //         break;
     //     case LAST_ACK:
     //     case FIN_WAIT_1:
     //     case FIN_WAIT_2:
     //     case TIME_WAIT:
     //     case CLOSING:
     //         dbg(TRANSPORT_CHANNEL, "error: connection closing\n");
-
-
-    //     Return "error: connection closing" and do not service request.
-
+    //         break;
     //     default:
     //         dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", socketHolder->state);
-    //         return FAIL;
     //         break;
     //     }
+    //     return SUCCESS;
+
     // }
 
     command socket_t Transport.socket(socket_t fd){
@@ -308,8 +310,9 @@ module TransportP{
 
         // //TO_DO: add check here to see if the packet has been seen before
 
+
         curConection->lastRcvd = mySegment->Seq_Num;
-        curConection->LastRecivedIPpack = *myMsg;
+        //curConection->LastRecivedIPpack = *myMsg;
 
         // curConection->lastTimeRecived = call LocalTime.get();
 
@@ -327,11 +330,11 @@ module TransportP{
             if(mySegment->Flags == RESET){/*ignore*/}
             else if(mySegment->Flags == ACK){/* Can't have ACK send Pack:<SEQ=SEG.ACK><CTL=RST>*/}
             else if(mySegment->Flags == SYN){
+                uint8_t ISN = 100;
                 call Transport.accept(curConection->src, myMsg);
-
                 seq = mySegment->Seq_Num;
-                send_buff(curConection->src, SYN+ACK, seq, 0, Empty, 0);
-                curConection->nextExpected = 1; //Replace this
+                send_buff(curConection->src, SYN+ACK, ISN, seq + 1, Empty, 0);
+                curConection->nextExpected = ISN + 1; //Replace this
                 curConection->state = SYN_RCVD;
                 dbg(TRANSPORT_CHANNEL, "STATE: LISTEN -> SYN_RCVD\n");
 
@@ -342,22 +345,19 @@ module TransportP{
             }
             break; 
             case SYN_SENT:
-                //put some checks here
             if(mySegment->Flags & ( SYN | ACK )) {
-                //dbg(TRANSPORT_CHANNEL, "curConection->lastSent %d < mySegment->Acknowledgment %d\n", curConection->lastSent, mySegment->Acknowledgment);
-
                 //any segments on the retransmission queue which are thereby acknowledged should be removed.
-                dbg(TRANSPORT_CHANNEL, "curConection->lastSent %d  curConection->lastRcvd %d\n", curConection->lastSent, curConection->lastRcvd);
-
-                if(curConection->lastSent == curConection->lastRcvd){
+                if(curConection->lastSent + 1 == mySegment->Acknowledgment){
                     dbg(TRANSPORT_CHANNEL, "STATE: SYN_SENT -> ESTABLISHED\n");
                     curConection->state = ESTABLISHED;
 
-                    if(curConection->lastSent == 0){seq = 1;}
-                    else{seq = 0;}
+                    // if(curConection->lastSent == 0){seq = 1;}
+                    // else{seq = 0;}
 
-                    send_buff(curConection->src, ACK, seq, 0, Empty, 0);
-                    curConection->nextExpected = seq;
+                    seq = mySegment->Acknowledgment;
+
+                    send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
+                    // curConection->nextExpected = seq + 1;
 
                     return SUCCESS;
                 }
@@ -370,9 +370,18 @@ module TransportP{
             ///new bits
         }
 
+        if(mySegment->Acknowledgment <= curConection->lastSent /*&& mySegment->Len == 0*/){
+            dbg(TRANSPORT_CHANNEL, "mySegment->Acknowledgment <= curConection->lastSent\n");
+            //resend the stuff
+            return SUCCESS;
+        }
+
         //check sequence number HERE
-        if(curConection->nextExpected != mySegment->Seq_Num){
-            dbg(TRANSPORT_CHANNEL, "curConection->nextExpected %d  curConection->lastRcvd %d\n", curConection->nextExpected, curConection->lastRcvd);
+        if(curConection->nextExpected <= mySegment->Seq_Num && mySegment->Len > 0){
+            dbg(TRANSPORT_CHANNEL, "curConection->nextExpected %d  mySegment->Seq_Num %d\n", curConection->nextExpected, mySegment->Seq_Num);
+            if(curConection->nextExpected < mySegment->Seq_Num){
+                return FAIL; //should put it back in the buffer
+            }
             dbg(TRANSPORT_CHANNEL, "Recived packet with unexpected SEQ #\n");
             return SUCCESS;
         }
@@ -382,21 +391,30 @@ module TransportP{
             case SYN_RCVD:
                 //put some checks here
                 if(mySegment->Flags & ( SYN | ACK )) {
-                    curConection->state = ESTABLISHED;
-                    dbg(TRANSPORT_CHANNEL, "STATE: SYN_RCVD -> ESTABLISHED\n");
+                    if(curConection->lastSent + 1 == mySegment->Acknowledgment){
+                //any segments on the retransmission queue which are thereby acknowledged should be removed.
+                        curConection->state = ESTABLISHED;
+                        dbg(TRANSPORT_CHANNEL, "STATE: SYN_RCVD -> ESTABLISHED\n");
 
-                    seq = mySegment->Seq_Num;
-                    send_buff(curConection->src, ACK, seq, 0, Empty, 0); //update this
-                    curConection->nextExpected = 0; //Replace this
+                        seq = mySegment->Acknowledgment;
+                        send_buff(curConection->src, ACK, seq, curConection->lastRcvd + 1, Empty, 0);
+                        curConection->nextExpected = seq + 1;
 
-                    return SUCCESS;
+                        return SUCCESS;
+                    }
                 }
                 else return SUCCESS;
                 break;
             case LAST_ACK:
-                if(mySegment->Flags == ACK && curConection->nextExpected == mySegment->Seq_Num){
-                    curConection->state=CLOSED;
-                    dbg(TRANSPORT_CHANNEL, "STATE: LAST_ACK -> CLOSED\n");
+                if(mySegment->Flags == ACK){
+                    if(curConection->nextExpected == mySegment->Acknowledgment){
+                        curConection->state=CLOSED;
+                        dbg(TRANSPORT_CHANNEL, "STATE: LAST_ACK -> CLOSED\n");
+                    }
+                    else{
+                        //do somthing 
+                    }
+                    return SUCCESS;
                     break;
                 }             
             case FIN_WAIT_1:
@@ -406,11 +424,17 @@ module TransportP{
                     return SUCCESS;
                 }
             case FIN_WAIT_2:
+                if(mySegment->Flags == ACK){
+                    /*In addition to the processing for the ESTABLISHED
+                  state, if the retransmission queue is empty, the
+                  user's CLOSE can be acknowledged ("ok") but do not
+                  delete the TCB.*/
+                }   
                 if(mySegment->Flags == FIN){
                     curConection-> state = TIME_WAIT;
                     dbg(TRANSPORT_CHANNEL, "STATE: FIN_WAIT_2 -> TIME_WAIT\n");
 
-                    send_buff(curConection->src, ACK, curConection->nextSend, curConection->nextExpected, Empty, 0); //update this
+                    send_buff(curConection->src, ACK, curConection->lastSent + 1, curConection->nextExpected, Empty, 0); //update this
 
                 //set a timer that eventually closes the socket
                 return SUCCESS;
@@ -418,13 +442,38 @@ module TransportP{
             case CLOSE_WAIT:
             case ESTABLISHED: //NOTE: everything below should be updated
                 if(mySegment->Flags == ACK){
+                    if(curConection->lastAck < mySegment->Acknowledgment && mySegment->Acknowledgment <= curConection->lastSent + 1){
+                        curConection->lastAck = mySegment->Acknowledgment;
+                        //Any segments on the retransmission queue that are thereby entirely acknowledged are removed.
+                    }
+                    if(mySegment->Acknowledgment <= curConection->lastAck){//ACK is a duplicate
+                        //it can be ignored
+                        return SUCCESS;
+                    }
+                    if(mySegment->Acknowledgment > curConection->lastSent + 1){//ACK acks something not yet sent
+                        //then send an ACK, drop the segment, and return.
+                        return SUCCESS;
+                    } 
+
+                    /*If SND.UNA =< SEG.ACK =< SND.NXT, the send window
+                  should be updated.  If (SND.WL1 < SEG.SEQ or (SND.WL1
+                  = SEG.SEQ and SND.WL2 =< SEG.ACK)), set SND.WND <-
+                  SEG.WND, set SND.WL1 <- SEG.SEQ, and set SND.WL2 <-
+                  SEG.ACK.*/
+
                     if(mySegment->Len == 0){ //this is a normal ack pack
                         //update socket
                         //stop resend for data
                     }
                     else{ // has data   //Only need to ipmlement this if you send more than one packet of data       
                         //update socket
-                        call Transport.read(curConection->src, mySegment, mySegment->Len);
+                        dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
+                        readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
+
+                        seq = curConection->lastAck + 1;
+
+                        send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
+                        curConection->nextExpected = seq + 1;
 
                         //make ack packet
                         //store pack for resend
@@ -434,19 +483,19 @@ module TransportP{
                 else if(mySegment->Flags == PUSH){
                     dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
 
-                    call Transport.read(curConection->src, mySegment, mySegment->Len);
+                    readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
                     //print out entire buffer
                     dbg(TRANSPORT_CHANNEL, "\tFinished reciving Message\n");
                     dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
 
-                    send_buff(curConection->src, ACK, curConection->nextSend, curConection->nextExpected, Empty, 0); //update this
+                    send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
                     return SUCCESS;
                 }
                 else if(mySegment->Flags == FIN){
                     curConection-> state = CLOSE_WAIT;
                     dbg(TRANSPORT_CHANNEL, "STATE: ESTABLISHED -> CLOSE_WAIT\n");
 
-                    send_buff(curConection->src, ACK, curConection->nextSend, curConection->nextExpected, Empty, 0); //update this
+                    send_buff(curConection->src, ACK, curConection->lastSent + 1, mySegment->Seq_Num + 1, Empty, 0); //update this
 
                     //call timer first or after?
                     call Transport.close(curConection->src); 
@@ -510,8 +559,8 @@ module TransportP{
         }
         return FAIL;
     } 
-        
-    command uint16_t Transport.read(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen){
+
+    uint16_t readDataToBuff(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen){
         uint8_t buffSize;
         socket_store_t * socketHolder =  call Connections.getPointer(fd);
         uint8_t *buff = tcpSegment->payload;
@@ -532,6 +581,29 @@ module TransportP{
         else{socketHolder->lastRead = 0;}
 
         return buffSize;
+    }
+        
+    command uint16_t Transport.read(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen){
+        // uint8_t buffSize;
+        // socket_store_t * socketHolder =  call Connections.getPointer(fd);
+        // uint8_t *buff = tcpSegment->payload;
+
+        // dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
+
+        // for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
+        // if (bufflen > buffSize){
+        //     // will write the max ammount
+        // }
+        // else{
+        //     buffSize = bufflen;
+        // }
+
+        // strcat((socketHolder->rcvdBuff), buff);
+
+        // if (socketHolder->lastRead == 0) {socketHolder->lastRead = 1;}
+        // else{socketHolder->lastRead = 0;}
+
+        // return buffSize;
     }
 
     command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
@@ -580,40 +652,58 @@ module TransportP{
                 dbg(TRANSPORT_CHANNEL, "Socket State: (LISTEN | SYN_SENT) -> CLOSED\n");
                 return SUCCESS;
                 break;
+            case SYN_RCVD:
+                /*If no SENDs have been issued and there is no pending data to
+                send, then form a FIN segment and send it, and enter FIN-WAIT-1
+                state; otherwise queue for processing after entering
+                ESTABLISHED state.*/
+
             case ESTABLISHED: //Starts the close
                 //sudo Code:
                     //Set state
                     //Send packet
                     //Set timmer
+                /*Queue this until all preceding SENDs have been segmentized,
+                then form a FIN segment and send it.  In any case, enter FIN-
+                WAIT-1 state.*/
 
                 mySocket->state = FIN_WAIT_1;
-                // mySocket->dest.port= myTcpHeader->Src_Port; //ask if necessary
-                // mySocket->dest.addr= myPacket->src; //ask if necessary
 
+                seq = mySocket->lastSent + 1;
 
-                if(mySocket->lastSent == 0){seq = 1;}
-                else{seq = 0;}
-
-                send_buff(fd, FIN, seq, 0, Empty, 0); //update this
+                send_buff(fd, FIN, seq, mySocket->lastRcvd +  (mySocket->lastSent - mySocket->lastAck) + 1, Empty, 0); //update this
+                
+                //udate socket and set timmer
 
                 return SUCCESS;
                 break;
+            case FIN_WAIT_1: case FIN_WAIT_2:
+                /*Strictly speaking, this is an error and should receive a
+                "error: connection closing" response.  An "ok" response would
+                be acceptable, too, as long as a second FIN is not emitted (the
+                first FIN may be retransmitted though).*/
+
             //make timer that checks if the packets of the payload are done sending, wait APP, research to know when it's done, timer or a command
             case CLOSE_WAIT: //changes wait to FIN WAIT 2 flag fin
             //sudo Code:
                 //Set state
                 //Send packet
                 //Set timmer
+                //Queue this request until all preceding SENDs have been segmentized; then send a FIN segment, enter LAST-ACK state.
                 dbg(TRANSPORT_CHANNEL, "In close CLOSE_WAIT \n");
-                mySocket-> state = LAST_ACK;
 
+                seq = mySocket->nextExpected;
 
-                if(mySocket->lastSent == 0){seq = 1;}
-                else{seq = 0;}
+                send_buff(fd, FIN, seq, mySocket->lastRcvd, Empty, 0); //update this
+                mySocket->nextExpected = seq + 1;
 
-                send_buff(fd, FIN, seq, 0, Empty, 0); //update this
+                mySocket->state = LAST_ACK;
+
                 return SUCCESS;
                 break;
+            case CLOSING: case LAST_ACK: case TIME_WAIT:
+                dbg(TRANSPORT_CHANNEL, "error: connection closing\n");
+                return FAIL;
             default:
                 dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", mySocket->state);
                 return FAIL;
