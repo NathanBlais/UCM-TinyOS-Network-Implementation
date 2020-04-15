@@ -710,8 +710,6 @@ module TransportP{
                 //Send packet
                 //Set timmer
                 //Queue this request until all preceding SENDs have been segmentized; then send a FIN segment, enter LAST-ACK state.
-                dbg(TRANSPORT_CHANNEL, "In close CLOSE_WAIT \n");
-
                 seq = mySocket->lastSent + 1;
 
                 send_buff(fd, FIN, seq, mySocket->lastRcvd + 1, Empty, 0); //update this
