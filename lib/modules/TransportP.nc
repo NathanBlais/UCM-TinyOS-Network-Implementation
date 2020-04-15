@@ -306,7 +306,7 @@ module TransportP{
         // printTCP(mySegment);
         // printSocket(mySegment->Dest_Port);
 
-        dbg(TRANSPORT_CHANNEL, "INCOMING SEQ #: %d\n",mySegment->Seq_Num );
+        dbg(TRANSPORT_CHANNEL, "INCOMING SEQ #: %d INCOMING ACK #: %d\n",mySegment->Seq_Num,mySegment->Acknowledgment);
 
         // //TO_DO: add check here to see if the packet has been seen before
 
@@ -357,6 +357,7 @@ module TransportP{
                     seq = mySegment->Acknowledgment;
 
                     send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
+                    curConection->lastAck = mySegment->Acknowledgment- 1;
                     // curConection->nextExpected = seq + 1;
 
                     return SUCCESS;
@@ -399,6 +400,8 @@ module TransportP{
                         seq = mySegment->Acknowledgment;
                         send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
                         curConection->nextExpected = seq + 1;
+                        curConection->lastAck = mySegment->Acknowledgment- 1;
+
 
                         return SUCCESS;
                     }
@@ -434,10 +437,20 @@ module TransportP{
                     curConection-> state = TIME_WAIT;
                     dbg(TRANSPORT_CHANNEL, "STATE: FIN_WAIT_1 0r 2 -> TIME_WAIT\n");
 
-                    send_buff(curConection->src, ACK, curConection->lastSent + 1, curConection->lastRcvd + 1, Empty, 0); //update this
+                    seq = mySegment->Acknowledgment;
+                    dbg(TRANSPORT_CHANNEL, "seq: %d ack: %d \n",seq,curConection->lastRcvd + 1);
+
+
+                    send_buff(curConection->src, ACK, seq, curConection->lastRcvd + 1, Empty, 0); //update this
+                    
+                    curConection->lastAck = mySegment->Acknowledgment- 1;
+                    dbg(TRANSPORT_CHANNEL, "curConection->lastSent: %d\n",curConection->lastSent);
+
+                    //curConection->nextExpected;
 
                 //set a timer that eventually closes the socket
                 return SUCCESS;
+                break;
                 }
             case CLOSE_WAIT:
             case ESTABLISHED: //NOTE: everything below should be updated
@@ -453,7 +466,7 @@ module TransportP{
                     if(mySegment->Acknowledgment > curConection->lastSent + 1){//ACK acks something not yet sent
                         //then send an ACK, drop the segment, and return.
                         return SUCCESS;
-                    } 
+                    }
 
                     /*If SND.UNA =< SEG.ACK =< SND.NXT, the send window
                   should be updated.  If (SND.WL1 < SEG.SEQ or (SND.WL1
@@ -505,11 +518,12 @@ module TransportP{
 
                     //if reciver assume sender is out of things to send.
                     call Transport.close(curConection->src); 
+                    return SUCCESS;
                     //timer? or command most likey command
                 }
                 else if(mySegment->Flags == RESET){}
                 else if(mySegment->Flags == URG){}
-                else return FAIL;
+                else return SUCCESS;
                 break; 
             case TIME_WAIT:
                 if(mySegment->Flags == URG){}
@@ -522,10 +536,10 @@ module TransportP{
 
             default:
                 dbg(TRANSPORT_CHANNEL, "FLAG_ERROR: \"%d\" does not match any known commands.\n", mySegment->Flags);
-                return FAIL;
+                return SUCCESS;
                 break;
         }
-        return FAIL;
+        return SUCCESS;
     }
 
     task void receiveBufferTask(){
