@@ -28,13 +28,8 @@ implementation {
 	components new TimerMilliC(), LocalTimeMilliC;
     TransportP.LocalTime -> LocalTimeMilliC;
 
-	// components new TimerMilliC() as sendPacketTimer;
-    // TransportP.sendPacketTimer -> sendPacketTimer;
-
-	// components new TimerMilliC() as sendDataTimer;
-    // TransportP.sendDataTimer -> sendDataTimer;
-
-    //NOTE: wire timmers 
+	components new TimerMilliC() as Timer;
+    TransportP.Timer -> Timer;
 
 	//Lists
    	components new PoolC(pack, 100);

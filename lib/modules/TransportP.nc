@@ -25,8 +25,7 @@ module TransportP{
   uses interface Hashmap<socket_store_t> as Connections; // hash table: list of connections
 
   uses interface LocalTime<TMilli>;
-//   uses interface Timer<TMilli> as sendPacketTimer;
-//   uses interface Timer<TMilli> as sendDataTimer;
+  uses interface Timer<TMilli> as Timer;
 
   uses interface Queue<pack*>;
   uses interface Pool<pack>;
@@ -127,63 +126,23 @@ module TransportP{
         return SUCCESS;
     }
 
-    // error_t send_data(/*Some Junk*/){
-    //     socket_store_t * socketHolder ;
-    //     if (!(call Connections.contains(fd))) return FAIL;
-    //     socketHolder = call Connections.getPointer(fd);
-
-    //     switch (socketHolder->state)
-    //     { 
-    //     case CLOSED: 
-    //         dbg(TRANSPORT_CHANNEL,"error:  connection does not exist\n");
-    //         return FAIL;
-    //         break;  
-    //     case LISTEN:
-    //     case SYN_SENT:
-    //     case SYN_RCVD:
-
-
-    //      /*re-Queue the data for transmission 
-    //       If no space to queue, respond with "error: insufficient
-    //      resources".*/
-    //         break;
-    //     case ESTABLISHED:
-    //     case CLOSE_WAIT:
-
-    //     //send data
-
-    //      /*Segmentize the buffer and send it with a piggybacked
-    //      acknowledgment (acknowledgment value = RCV.NXT).  If there is
-    //      insufficient space to remember this buffer, simply return
-    //      "error: insufficient resources".
-
-    //      If the urgent flag is set, then SND.UP <- SND.NXT and set the
-    //      urgent pointer in the outgoing segments.*/
-    //         break;
-    //     case LAST_ACK:
-    //     case FIN_WAIT_1:
-    //     case FIN_WAIT_2:
-    //     case TIME_WAIT:
-    //     case CLOSING:
-    //         dbg(TRANSPORT_CHANNEL, "error: connection closing\n");
-    //         break;
-    //     default:
-    //         dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", socketHolder->state);
-    //         break;
-    //     }
-    //     return SUCCESS;
-
-    // }
+    Timer.fired(){
+        //check for TIME_WAIT to close wait for 2 times msl
+        //time out connection
+        //packet resender
+        //normal sender
+    }
 
     command socket_t Transport.socket(socket_t fd){
         dbg(TRANSPORT_CHANNEL,"Transport.socket() Called\n");
+        if(!(Timer.isRunning())){Timer.startPeriodic(512);} //Start Timer
         if(call Connections.contains(0)) { //if there is room
-        if(!(call Connections.contains(fd))) 
-            return fd;
-        else{
-            dbg(TRANSPORT_CHANNEL,"Failed: port %d is not available\n", fd);
-            return NULLSocket;
-        }
+            if(!(call Connections.contains(fd))) 
+                return fd;
+            else{
+                dbg(TRANSPORT_CHANNEL,"Failed: port %d is not available\n", fd);
+                return NULLSocket;
+            }
         }
         dbg(TRANSPORT_CHANNEL,"Failed: No sockets are available\n");
         return NULLSocket;
