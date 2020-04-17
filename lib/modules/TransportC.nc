@@ -34,15 +34,13 @@ implementation {
 	//Lists
    	components new PoolC(pack, 100);
    	components new QueueC(pack*, 100);
+	components new PoolC(sendTCPInfo, 20) as SendPoolC;
+	components new QueueC(sendTCPInfo*, 20) as SendQueueC;
 
    	TransportP.Pool -> PoolC;
+	TransportP.SendPool -> SendPoolC;
    	TransportP.Queue -> QueueC;
-
-	//components new PoolC(pack, 10) as SendPool;
-   	//components new QueueC(sendTCPInfo*, 10) as SendQueue;
-
-   	//TransportP.SendPool -> SendPool;
-   	//TransportP.SendQueue -> SendQueue;
+   	TransportP.SendQueue -> SendQueueC;
 
 
 }

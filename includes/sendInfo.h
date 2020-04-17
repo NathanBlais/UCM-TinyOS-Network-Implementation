@@ -29,6 +29,13 @@ typedef struct sendTCPInfo{
 	uint8_t length;
 }sendTCPInfo;
 
+typedef struct rsendTCPInfo{
+	socket_t socKey;
+	uint8_t flag;
+	pack payload;
+	uint8_t length;
+}rsendTCPInfo;
+
 typedef struct neighbor {
 		uint16_t id;
 		bool flag;

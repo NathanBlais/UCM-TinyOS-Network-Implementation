@@ -29,8 +29,10 @@ module TransportP{
 
   uses interface Queue<pack*>;
   uses interface Pool<pack>;
-  //uses interface SendQueue<sendTCPInfo*> as SendQueue;
-  //uses interface SendPool<pack> as SendPool;
+  uses interface Queue<sendTCPInfo*> as SendQueue;
+  uses interface Pool<sendTCPInfo> as SendPool;
+
+  //add a resend buffer
 
  }
 
@@ -122,11 +124,12 @@ module TransportP{
 
     //should return the ammount of data written to the socket
     error_t send_buff(socket_t socKey, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length){
+        //put packets in a que 
         send_out(socKey, flag, seq, ack, payload, length);
         return SUCCESS;
     }
 
-    Timer.fired(){
+    event void Timer.fired(){
         //check for TIME_WAIT to close wait for 2 times msl
         //time out connection
         //packet resender
@@ -135,7 +138,7 @@ module TransportP{
 
     command socket_t Transport.socket(socket_t fd){
         dbg(TRANSPORT_CHANNEL,"Transport.socket() Called\n");
-        if(!(Timer.isRunning())){Timer.startPeriodic(512);} //Start Timer
+        if(!(call Timer.isRunning())){call Timer.startPeriodic(512);} //Start Timer
         if(call Connections.contains(0)) { //if there is room
             if(!(call Connections.contains(fd))) 
                 return fd;
@@ -268,6 +271,7 @@ module TransportP{
         dbg(TRANSPORT_CHANNEL, "INCOMING SEQ #: %d INCOMING ACK #: %d\n",mySegment->Seq_Num,mySegment->Acknowledgment);
 
         // //TO_DO: add check here to see if the packet has been seen before
+                //this means the sent packet was lost resend it again and extend the close time
 
 
         curConection->lastRcvd = mySegment->Seq_Num;
@@ -490,7 +494,10 @@ module TransportP{
                 if(mySegment->Flags == PUSH){}
                 if(mySegment->Flags == RESET){}
                 if(mySegment->Flags == SYN){}
-                if(mySegment->Flags == FIN){}
+                if(mySegment->Flags == FIN){
+                    //this means the sent packet was lost resend it again and extend the close time
+                    //should be taken care of earlyer
+                }
                 break; 
 
             default:
