@@ -126,7 +126,7 @@ implementation{
          *msg = *message;
 
          // Attempt to send the packet.
-         if(call AMSend.send(dest, &pkt, sizeof(pack)) ==SUCCESS){
+         if(call AMSend.send(dest, &pkt, sizeof(pack)) == SUCCESS){
             // See AMSend.sendDone(msg, error) to see what happens after.
             busy = TRUE;
             return SUCCESS;

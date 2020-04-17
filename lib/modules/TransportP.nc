@@ -27,13 +27,16 @@ module TransportP{
   uses interface LocalTime<TMilli>;
   uses interface Timer<TMilli> as Timer;
 
+//   uses interface List<sendTCPInf> as SendBuff;
+//   uses interface List<sendTCPInf> as ReSendBuff;
+
   uses interface Queue<pack*>;
   uses interface Pool<pack>;
   uses interface Queue<sendTCPInfo*> as SendQueue;
   uses interface Pool<sendTCPInfo> as SendPool;
 
-  uses interface Queue<sendTCPInfo*> as ReSendQueue;
-  uses interface Pool<sendTCPInfo> as ReSendPool;
+//   uses interface Queue<sendTCPInfo*> as ReSendQueue;
+//   uses interface Pool<sendTCPInfo> as ReSendPool;
 
 
   //add a resend buffer
@@ -66,6 +69,7 @@ module TransportP{
   implementation{    
 
     // Globals
+
     const socket_t NULLSocket = 0;
     uint8_t *Empty;
     uint16_t ipSeq = 1;
@@ -74,26 +78,45 @@ module TransportP{
 
     error_t receive(pack* package);
     uint16_t readDataToBuff(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
-    error_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
+    uint8_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment);
     error_t updateSenderSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
     
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length);
     
-
-
-    error_t send_out(socket_t socKey, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length){
+    task void send_out(){
         tcpHeader sendPackageTCP;
         pack sendIPpackage;
+        uint8_t AW;
+        sendTCPInfo *info = call SendQueue.head();
+
+        socket_t socKey = info->socKey;
+        uint8_t flag = info->flag;
+        uint8_t seq = info->seq;
+        uint8_t ack = info->ack; 
+        pack* payload = &(info->payload);
+        uint8_t length = info->length;
+
         socket_store_t * socketHolder = call Connections.getPointer(socKey);
 
-        dbg(TRANSPORT_CHANNEL,"error_t send Called\n");
+        dbg(TRANSPORT_CHANNEL,"error_t send_out Called\n");
+        dbg(TRANSPORT_CHANNEL,"socketHolder->state %d\n", socketHolder->state);
+        dbg(TRANSPORT_CHANNEL,"socKey %d\n", info->socKey);
+
 
         switch (socketHolder->state)
             { 
             case CLOSED: 
                 dbg(TRANSPORT_CHANNEL,"error:  connection does not exist\n");
-                return FAIL;
+                return;
                 break;  
+            case SYN_RCVD: case ESTABLISHED: case FIN_WAIT_1: case FIN_WAIT_2: case CLOSE_WAIT:
+            if(length == 0){
+                AW = updateRecieverSlideWindow(socKey, &sendPackageTCP);
+            }
+            else{
+                AW = 1;
+            }
+            break;
             default:
                 //dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", socketHolder->state);
                 //return FAIL;
@@ -107,7 +130,7 @@ module TransportP{
         sendPackageTCP.Seq_Num = seq;
         sendPackageTCP.Acknowledgment = ack;
         sendPackageTCP.Len = length;
-        sendPackageTCP.Advertised_Window = socketHolder->effectiveWindow;
+        sendPackageTCP.Advertised_Window = AW;
         memcpy(sendPackageTCP.payload, payload, length);
         /*END OF: Make the TCP Packet*/
         makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
@@ -127,21 +150,46 @@ module TransportP{
         //save a copy of the packet to be re-sent by a timmer and set RTT & TTD lastTimeSent
         //socketHolder->RTT = (socketHolder->lastTimeRecived - socketHolder->lastTimeSent) + call LocalTime.get() + 300;
         //socketHolder->TTD = (socketHolder->RTT) * 3;
-        return SUCCESS;
+        call SendQueue.dequeue();
+        call SendPool.put(info);
 
     }
 
     //should return the ammount of data written to the socket
     error_t send_buff(socket_t socKey, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length){
         //put packets in a que 
-        send_out(socKey, flag, seq, ack, payload, length);
-        return SUCCESS;
+        socket_store_t * socketHolder = call Connections.getPointer(socKey);
+        dbg(TRANSPORT_CHANNEL,"socKey %d\n", socKey);
+
+        dbg(TRANSPORT_CHANNEL,"socketHolder->state %d\n", socketHolder->state);
+
+
+        if(!call SendPool.empty()){
+            sendTCPInfo *input = call SendPool.get();
+            input->socKey = socKey;
+            input->flag = flag;
+            input->seq = seq;
+            input->ack = ack;
+            memcpy(&(input->payload), payload, length);
+            input->length = length;
+
+            // Now that we have a value from the pool we can put it into our queue.
+            // This is a FIFO queue.
+            call SendQueue.enqueue(input);
+            //call ReSendBuff.insert(info)
+
+            // Start a send task which will be delayed.
+            post send_out();
+
+            return SUCCESS;
+        }
+        return FAIL;
     }
 
     event void Timer.fired(){
         //check for TIME_WAIT to close wait for 2 times msl
         //time out connection
-        //packet resender
+        //packet resender / data sender
         //normal sender
       
         uint16_t i;
@@ -149,91 +197,89 @@ module TransportP{
         sendTCPInfo* TCPinfo; // has socket_t, flag, payload, length
         socket_store_t * mySocket;
         socket_store_t * resendSocket;
-         socket_store_t * sendSocket;
-        if (call Connections.isEmpty() == TRUE)
-            {
-                return; //don't do anything
-            }
+        socket_store_t * sendSocket;
+        uint8_t size = call Connections.size();
+        uint32_t * keys = call Connections.getKeys();
 
-        for (i = 1; i-1 < call Connections.size(); i++ )
+        if (call Connections.isEmpty() == TRUE) return; //if there are no connections don't do anything.
+        for (i = 0; i < size ; i++)
         {
-            mySocket = call Connections.getPointer(i);
+            mySocket = call Connections.getPointer(keys[i]);
+           // dbg(TRANSPORT_CHANNEL,"mySocket->state %d\n", mySocket->TTD);
+            //dbg(TRANSPORT_CHANNEL,"call LocalTime.get() %d | mySocket->TTD %d\n", call LocalTime.get(), mySocket->TTD);
 
-            if (mySocket->state == TIME_WAIT && mySocket->TTD < call LocalTime.get())
+            if(mySocket->state == TIME_WAIT && mySocket->TTD < call LocalTime.get())
             {
                 mySocket->state = CLOSED;
                 dbg(TRANSPORT_CHANNEL, "STATE: TIME_WAIT -> CLOSED\n");
                 call Connections.remove(i);
+
             }
-
-            //timeout connection? so close it?
-           // Transport.close(i);
-
-          /* if (mySocket->TTD < call LocalTime.get())
+            /* if (mySocket->TTD < call LocalTime.get())
             {
                 call Transport.close(i);
             }
-           */
-
-        //come back to this
-         //  send_buff(i, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length
-//if there is/are packets in the resend queue for this socket
-            //TCPinfo; // has socket_t, flag, payload, length
-            if (call ReSendQueue.empty() == FALSE) //  how do i check for the specific socket?
-            {
-                for (j = 0; j < call ReSendQueue.size(); j++)
-                {
-                    TCPinfo = call ReSendQueue.element(j);
-                   
-                    resendSocket = call Connections.getPointer(TCPinfo->socKey);
-                   
-                   if (resendSocket->RTT < call LocalTime.get())
-                   {
-                     //send packet
-                     //update RTT and put them back in the resend queue
-
-                   }
-
-                  
-
-                }
-            }
-            else if (call SendQueue.empty() == FALSE)
-            {
-                //send data through sliding window sender type
-                //checking effective window
-                for (j = 0; j < call ReSendQueue.size(); j++)
-                {
-                    TCPinfo = call SendQueue.element(j);
-                   
-                    sendSocket = call Connections.getPointer(TCPinfo->socKey);
-                   
-
-                   //sendSocket->effectiveWindow
-                   //think about it
-
-                  
-
-                }
-
-            }
-
-            /*
-
-            Else if (there is a packet/packets in the send buffer that needs to be sent from this socket //normal sender
-            Send the first packet and move it to the resend que
-
-
             */
 
+            /*
+            if there is/are packets to be resent for this socket
+                For each of the resend packets for this socket 
+                        if(the RTT < current time)
+                        Send it/them
+                        Update their RTT and put them back in the resend que
+            Else if ( if there is new data that needs to be sent)//no packets should be in flight
+                If the sockets state == FIN_WAIT_1
+                    Add a FIN to the ACK flag for the sending of data
+                Send it according to the sliding window
+            Else if (there is a packet/packets in the send buffer that needs to be sent from this socket //normal sender
+                If the sockets state == FIN_WAIT_1
+                    Send a fin pack
+                If the sockets state == CLOSE_WAIT
+                    call Transport.close(curConection->src);
+                Send the first packet and move it to the resend que
+            */
 
+            // if (call ReSendQueue.empty() == FALSE) //  how do i check for the specific socket?
+            // {
+            //     for (j = 0; j < call ReSendQueue.size(); j++)
+            //     {
+            //         TCPinfo = call ReSendQueue.element(j);
+                   
+            //         resendSocket = call Connections.getPointer(TCPinfo->socKey);
+                   
+            //        if (resendSocket->RTT < call LocalTime.get())
+            //        {
+            //          //send packet
+            //          //update RTT and put them back in the resend queue
 
+            //        }
+            //     }
+            // }
+            // else if (call SendQueue.empty() == FALSE)
+            // {
+            //     //send data through sliding window sender type
+            //     //checking effective window
+            //     for (j = 0; j < call ReSendQueue.size(); j++)
+            //     {
+            //         TCPinfo = call SendQueue.element(j);
+                   
+            //         sendSocket = call Connections.getPointer(TCPinfo->socKey);
+                   
+
+            //        //sendSocket->effectiveWindow
+            //        //think about it 
+
+            //     }
+            //}
+            /*
+            Else if (there is a packet/packets in the send buffer that needs to be sent from this socket //normal sender
+            Send the first packet and move it to the resend que
+            */
+            // if(mySocket->state == FIN_WAIT_1){
+            //     send_buff(mySocket->src, FIN, mySocket->lastAck+1, lastRcvd+1, Empty, 0)
+            // }
 
         }
-
-        
-
-
     }
 
     command socket_t Transport.socket(socket_t fd){
@@ -274,6 +320,7 @@ module TransportP{
         TCB.dest = *addr;
         TCB.state = CLOSED;
         TCB.effectiveWindow = 1;  //NOTE:We Need to replace this value
+        TCB.TTD = 0;
         //Add call to set up Sliding Window
 
         call Connections.insert(fd, TCB);//insert socket into Hash
@@ -306,7 +353,7 @@ module TransportP{
         return fd;
     }
 
-    command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen){
+    command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen){ //NOTE: FIGURE out how to deal with writing if the buffer is not full but past its max seq #
         socket_store_t * socketHolder ;
         uint8_t written;
         if (!(call Connections.contains(fd))) return FAIL;
@@ -476,6 +523,7 @@ module TransportP{
                     if(curConection->nextExpected == mySegment->Acknowledgment){
                         curConection->state=CLOSED;
                         dbg(TRANSPORT_CHANNEL, "STATE: LAST_ACK -> CLOSED\n");
+                        call Connections.remove(curConection->seq);
                     }
                     else{
                         //do somthing 
@@ -589,7 +637,7 @@ module TransportP{
                     dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
 
                     send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
-                    updateRecieverSlideWindow(curConection->src, mySegment, 0);
+                    updateRecieverSlideWindow(curConection->src, mySegment);
                     return SUCCESS;
                 }
                 else if(mySegment->Flags == RESET){}
@@ -703,13 +751,14 @@ module TransportP{
     command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
         socket_store_t * socketHolder ;
         uint8_t inSeq = 0; //choose inital sequence number
+        dbg(TRANSPORT_CHANNEL, "connect() was called\n");
         if (!(call Connections.contains(fd))) return FAIL;
         socketHolder = call Connections.getPointer(fd);
         switch (socketHolder->state)
         { 
         case CLOSED: 
             socketHolder->state = SYN_SENT; //Change the state of the socket
-            dbg(TRANSPORT_CHANNEL, "STATE: CLOSED -> SYN_SENT\n");
+            dbg(TRANSPORT_CHANNEL, "STATE: CLOSED -> SYN_SENT %d\n",socketHolder->state );
             send_buff(fd, SYN, inSeq, 0, Empty, 0); //ack,payload, len packet,  //make and send a packet //send buffer
             return SUCCESS;
             break;  
@@ -754,6 +803,8 @@ module TransportP{
 
             case ESTABLISHED: //Starts the close
                 mySocket->state = FIN_WAIT_1;
+                send_buff(mySocket->src, FIN, mySocket->lastAck+1, mySocket->lastRcvd+1, Empty, 0);
+                
                 return SUCCESS;
                 break;
             case FIN_WAIT_1: case FIN_WAIT_2:
@@ -826,7 +877,7 @@ module TransportP{
         if (!(call Connections.contains(fd))) return FAIL;
         socketHolder = call Connections.getPointer(fd);
 
-    /*
+        /*
 	    if (socketHolder->flag == ACK && socketHolder->lastAck != socketHolder->lastRcvd )
 	    {
 	    socketHolder -> lastAck = socketHolder->lastRcvd; //maybe change this to socketHolder->lastRcvd;????
@@ -852,11 +903,8 @@ module TransportP{
 
 
 
-
-
-
     //call in timer before send
-    error_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen)
+    uint8_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment)
     {
 	//lastSent is already updated here. but what about the other variables
 	//this happens after read

@@ -25,6 +25,8 @@ typedef struct reciveInfo{
 typedef struct sendTCPInfo{
 	socket_t socKey;
 	uint8_t flag;
+	uint8_t seq;
+	uint8_t ack;
 	pack payload;
 	uint8_t length;
 }sendTCPInfo;
