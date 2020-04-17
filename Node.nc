@@ -207,9 +207,11 @@ implementation{
       //for(i=0; payload[i] != '\0'; i++ ){}
 
       dbg(TRANSPORT_CHANNEL, "sizeof(payload): %d\n", i);
+      dbg(TRANSPORT_CHANNEL, "payload: %s\n", payload);
+
 
       //AmountWritten = 
-      //call Transport.write(srcPort,payload,i);
+      call Transport.write(srcPort,payload,i);
 
       //add the payload to a que to be cut up and packaged to be sent after connection
 

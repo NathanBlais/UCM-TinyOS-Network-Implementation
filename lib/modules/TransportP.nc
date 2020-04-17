@@ -83,7 +83,7 @@ module TransportP{
     
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length);
     
-    task void send_out(){
+     void send_out(){
         tcpHeader sendPackageTCP;
         pack sendIPpackage;
         uint8_t AW;
@@ -111,10 +111,11 @@ module TransportP{
                 break;  
             case SYN_RCVD: case ESTABLISHED: case FIN_WAIT_1: case FIN_WAIT_2: case CLOSE_WAIT:
             if(length == 0){
-                AW = updateRecieverSlideWindow(socKey, &sendPackageTCP);
+            //    AW = updateRecieverSlideWindow(socKey, &sendPackageTCP);
+                AW = 5;
             }
             else{
-                AW = 1;
+                AW = 5;
             }
             break;
             default:
@@ -135,6 +136,10 @@ module TransportP{
         /*END OF: Make the TCP Packet*/
         makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
         ipSeq = ipSeq + 1;
+
+        dbg(TRANSPORT_CHANNEL,"length %d\n", length);
+        dbg(TRANSPORT_CHANNEL,"sendPackageTCP.Len %d\n", sendPackageTCP.Len);
+       // dbg(TRANSPORT_CHANNEL,"(sendIPpackage.package).Len %d\n", (sendIPpackage.payload).Len);
 
 
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
@@ -163,6 +168,7 @@ module TransportP{
 
         dbg(TRANSPORT_CHANNEL,"socketHolder->state %d\n", socketHolder->state);
 
+        dbg(TRANSPORT_CHANNEL,"length %d\n", length);
 
         if(!call SendPool.empty()){
             sendTCPInfo *input = call SendPool.get();
@@ -172,6 +178,9 @@ module TransportP{
             input->ack = ack;
             memcpy(&(input->payload), payload, length);
             input->length = length;
+            
+            dbg(TRANSPORT_CHANNEL,"input->length %d\n", input->length);
+
 
             // Now that we have a value from the pool we can put it into our queue.
             // This is a FIFO queue.
@@ -179,14 +188,14 @@ module TransportP{
             //call ReSendBuff.insert(info)
 
             // Start a send task which will be delayed.
-            post send_out();
+             send_out();
 
             return SUCCESS;
         }
         return FAIL;
     }
 
-    event void Timer.fired(){
+    task void TimerTask(){
         //check for TIME_WAIT to close wait for 2 times msl
         //time out connection
         //packet resender / data sender
@@ -220,6 +229,65 @@ module TransportP{
                 call Transport.close(i);
             }
             */
+
+
+            //TO_DO: implement resender
+            
+               /* Else if ( if there is new data that needs to be sent)//no packets should be in flight
+                If the sockets state == FIN_WAIT_1
+                    Add a FIN to the ACK flag for the sending of data
+                Send it according to the sliding window*/
+
+            if(mySocket->lastSent > mySocket->lastAck){
+                //fill later
+            }
+            else if(mySocket->lastWritten > mySocket->lastSent){
+                uint8_t buffSize;
+                uint8_t dataBuffer[SOCKET_BUFFER_SIZE];
+                switch(mySocket->state){
+                    case ESTABLISHED: case CLOSE_WAIT:
+                        dbg(TRANSPORT_CHANNEL,"mySocket->lastWritten %d | mySocket->lastSent %d\n", mySocket->lastWritten, mySocket->lastSent);
+
+
+                        //figure out amount of data to send
+
+                        dbg(TRANSPORT_CHANNEL, "Message in Socket is %s\n", mySocket->sendBuff);
+
+
+                        for(buffSize=0; mySocket->sendBuff[buffSize] != '\0'; buffSize++){} 
+                        dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
+
+                        if(mySocket->effectiveWindow > buffSize){
+                            //keep buffSize the same
+                        }
+                        else{
+                            buffSize = mySocket->effectiveWindow;
+                        }
+
+                        dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
+
+                        
+                        while(buffSize > 0){
+                            if (TCP_PACKET_MAX_PAYLOAD_SIZE > buffSize){
+                                memcpy(dataBuffer, (mySocket->sendBuff), buffSize);
+                                dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
+                                dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", dataBuffer);
+                                send_buff(mySocket->src, ACK, mySocket->lastAck + buffSize, mySocket->lastRcvd + 1 , &dataBuffer, buffSize);
+                                buffSize = 0;
+                            }
+                            else{
+                                memcpy(dataBuffer, &(mySocket->sendBuff), TCP_PACKET_MAX_PAYLOAD_SIZE);
+                                dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", dataBuffer);
+                                send_buff(mySocket->src, ACK, mySocket->lastAck + TCP_PACKET_MAX_PAYLOAD_SIZE, mySocket->lastRcvd + 1 , dataBuffer, TCP_PACKET_MAX_PAYLOAD_SIZE);
+                                buffSize = buffSize - TCP_PACKET_MAX_PAYLOAD_SIZE;
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                return;
+            }
 
             /*
             if there is/are packets to be resent for this socket
@@ -282,6 +350,11 @@ module TransportP{
         }
     }
 
+    event void Timer.fired(){
+        post TimerTask();
+        //return SUCCESS;
+    }
+
     command socket_t Transport.socket(socket_t fd){
         dbg(TRANSPORT_CHANNEL,"Transport.socket() Called\n");
         if(!(call Timer.isRunning())){call Timer.startPeriodic(512);} //Start Timer
@@ -299,6 +372,7 @@ module TransportP{
 
     command error_t Transport.bind(socket_t fd, socket_addr_t *addr){
         socket_store_t TCB;//Transmission Control Block
+        uint8_t i;
 
         //Check if values are valid
         if(fd == 0 || fd > MAX_NUM_OF_SOCKETS){
@@ -319,8 +393,12 @@ module TransportP{
         TCB.src = fd;
         TCB.dest = *addr;
         TCB.state = CLOSED;
-        TCB.effectiveWindow = 1;  //NOTE:We Need to replace this value
+        TCB.effectiveWindow = 5;  //NOTE:We Need to replace this value
         TCB.TTD = 0;
+        for (i = 0; i < SOCKET_BUFFER_SIZE; i++) {
+			TCB.sendBuff[i] = '\0';
+			TCB.rcvdBuff[i] = '\0';
+		}
         //Add call to set up Sliding Window
 
         call Connections.insert(fd, TCB);//insert socket into Hash
@@ -356,12 +434,11 @@ module TransportP{
     command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen){ //NOTE: FIGURE out how to deal with writing if the buffer is not full but past its max seq #
         socket_store_t * socketHolder ;
         uint8_t written;
-        if (!(call Connections.contains(fd))) return FAIL;
-        socketHolder = call Connections.getPointer(fd);
-
         dbg(TRANSPORT_CHANNEL,"Transport.write() Called\n");
-        if (buff == NULL || bufflen < 1) return 0;
+
         if (!(call Connections.contains(fd))) return 0;
+        socketHolder = call Connections.getPointer(fd);
+        if (buff == NULL || bufflen < 1) return 0;
 
         switch (socketHolder->state)
         { 
@@ -374,16 +451,26 @@ module TransportP{
         case ESTABLISHED: // right here, writes to the send buffer
         case CLOSE_WAIT:
             //get size of buffer
-            for(written=0; socketHolder->sendBuff[written] != '\0'; written++){} 
+            //for(written=0; socketHolder->sendBuff[written] == '\0'; written++){} 
 
-            if (bufflen > written){
-               // will write the max ammount
+            dbg(TRANSPORT_CHANNEL, "\t\tbufflen = %d\n", bufflen);
+            if (bufflen > SOCKET_BUFFER_SIZE){
+               written = SOCKET_BUFFER_SIZE;
             }
             else{
                 written = bufflen;
             }
+
+            socketHolder->lastWritten = written;
+            
+            // if (bufflen > written){
+            //    // will write the max ammount
+            // }
+            // else{
+            //     written = bufflen;
+            // }
             memcpy((socketHolder->sendBuff), buff, written);
-            dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", socketHolder->sendBuff);
+            dbg(TRANSPORT_CHANNEL, "Message written to sendBuff is %s\n", socketHolder->sendBuff);
 
             //call sendDataTimer.startPeriodic(81000); //could be set to a diffrent number
             return written;
@@ -523,7 +610,7 @@ module TransportP{
                     if(curConection->nextExpected == mySegment->Acknowledgment){
                         curConection->state=CLOSED;
                         dbg(TRANSPORT_CHANNEL, "STATE: LAST_ACK -> CLOSED\n");
-                        call Connections.remove(curConection->seq);
+                        call Connections.remove(curConection->src);
                     }
                     else{
                         //do somthing 
@@ -569,29 +656,30 @@ module TransportP{
                     curConection-> state = CLOSE_WAIT;
                     dbg(TRANSPORT_CHANNEL, "STATE: ESTABLISHED -> CLOSE_WAIT\n");
 
-                    //if sender
+                    //if(mySegment->Len == 0 && //if there is data in the reciver buffer && th){ //this is needed for server to close
+                        //update socket
+                        curConection->lastAck = mySegment->Acknowledgment;
 
-                    //send_buff(curConection->src, ACK, curConection->lastSent + 1, mySegment->Seq_Num + 1, Empty, 0); //update this
-
-                    //call timer first or after?
-
-                    //if reciver assume sender is out of things to send.
-                    call Transport.close(curConection->src); 
-                    return SUCCESS;
+                        updateSenderSlideWindow(curConection->src, mySegment, 0);
+                        call Transport.close(curConection->src);
+                        return SUCCESS;
                     //timer? or command most likey command
                 }
                 if(mySegment->Flags & ACK){
-                    if(curConection->lastAck < mySegment->Acknowledgment && mySegment->Acknowledgment <= curConection->lastSent + 1){
-                        curConection->lastAck = mySegment->Acknowledgment;
-                        //Any segments on the retransmission queue that are thereby entirely acknowledged are removed.
-                    }
                     if(mySegment->Acknowledgment <= curConection->lastAck){//ACK is a duplicate
+                        dbg(TRANSPORT_CHANNEL, "Ack is a duplicate\n");
                         //it can be ignored
                         return SUCCESS;
                     }
                     if(mySegment->Acknowledgment > curConection->lastSent + 1){//ACK acks something not yet sent
                         //then send an ACK, drop the segment, and return.
+                        dbg(TRANSPORT_CHANNEL, "recived Ack for something not yet sent\n");
+
                         return SUCCESS;
+                    }
+                    if(curConection->lastAck < mySegment->Acknowledgment && mySegment->Acknowledgment <= curConection->lastSent + 1){
+                        curConection->lastAck = mySegment->Acknowledgment;
+                        //Any segments on the retransmission queue that are thereby entirely acknowledged are removed.
                     }
 
                     /*If SND.UNA =< SEG.ACK =< SND.NXT, the send window
@@ -599,7 +687,7 @@ module TransportP{
                   = SEG.SEQ and SND.WL2 =< SEG.ACK)), set SND.WND <-
                   SEG.WND, set SND.WL1 <- SEG.SEQ, and set SND.WL2 <-
                   SEG.ACK.*/
-
+                    dbg(TRANSPORT_CHANNEL, "mySegment->Len %d\n",mySegment->Len);
                     if(mySegment->Len == 0){ //this is a normal ack pack
                         //update socket
                         updateSenderSlideWindow(curConection->src, mySegment, 0);
@@ -617,27 +705,15 @@ module TransportP{
                         readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
 
                         seq = curConection->lastAck + 1;
-
                         send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
                         curConection->nextExpected = seq + 1;
-                        //updateRecieverSlideWindow(curConection->src, mySegment, 0);
-                        
-
-                        //make ack packet
-                        //store pack for resend
-                        //send back an ack packet
                     }
                 }
-                else if(mySegment->Flags == PUSH){
+                if(mySegment->Flags & PUSH){
                     dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
-
-                    readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
-                    //print out entire buffer
                     dbg(TRANSPORT_CHANNEL, "\tFinished reciving Message\n");
                     dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
-
-                    send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
-                    updateRecieverSlideWindow(curConection->src, mySegment);
+                    //call Transport.read(curConection->src)
                     return SUCCESS;
                 }
                 else if(mySegment->Flags == RESET){}
