@@ -37,10 +37,15 @@ implementation {
 	components new PoolC(sendTCPInfo, 20) as SendPoolC;
 	components new QueueC(sendTCPInfo*, 20) as SendQueueC;
 
+	components new PoolC(sendTCPInfo, 20) as ReSendPoolC;
+	components new QueueC(sendTCPInfo*, 20) as ReSendQueueC;
+
    	TransportP.Pool -> PoolC;
 	TransportP.SendPool -> SendPoolC;
+	TransportP.ReSendPool -> ReSendPoolC;
    	TransportP.Queue -> QueueC;
    	TransportP.SendQueue -> SendQueueC;
+	TransportP.ReSendQueue -> ReSendQueueC;
 
 
 }

@@ -32,6 +32,10 @@ module TransportP{
   uses interface Queue<sendTCPInfo*> as SendQueue;
   uses interface Pool<sendTCPInfo> as SendPool;
 
+  uses interface Queue<sendTCPInfo*> as ReSendQueue;
+  uses interface Pool<sendTCPInfo> as ReSendPool;
+
+
   //add a resend buffer
 
  }
@@ -134,6 +138,51 @@ module TransportP{
         //time out connection
         //packet resender
         //normal sender
+        uint16_t i;
+        uint8_t j; 
+        socket_store_t * mySocket;
+        if (call Connections.isEmpty() == TRUE)
+            {
+                return;
+            }
+
+        for (i = 1; i-1 < call Connections.size(); i++ )
+        {
+            mySocket = call Connections.getPointer(i);
+
+            if (mySocket->state == TIME_WAIT) //not sure about the 2times MSL
+            {
+                mySocket->state = CLOSED;
+                call Connections.remove(i);
+            }
+
+            //timeout connection? so close it?
+           // Transport.close(i);
+
+          /* if (mySocket->TTD < call LocalTime.get())
+           {
+                call Transport.close(i);
+           }
+           */
+
+        //come back to this
+         //  send_buff(i, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length
+//if there is/are packets in the resend queue for this socket
+            if (call ReSendQueue.empty() == FALSE) //  how do i check for the specific socket?
+            {
+                for (j = 0; j < call ReSendQueue.size(); j++)
+                {
+                    //if ()
+                }
+            }
+
+
+
+        }
+
+        
+
+
     }
 
     command socket_t Transport.socket(socket_t fd){
