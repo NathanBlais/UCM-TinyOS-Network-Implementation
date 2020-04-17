@@ -75,6 +75,9 @@ module TransportP{
 
     error_t receive(pack* package);
     uint16_t readDataToBuff(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
+    error_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
+    error_t updateSenderSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
+    
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length);
     
 
@@ -111,10 +114,13 @@ module TransportP{
         makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
         ipSeq = ipSeq + 1;
 
+
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
 
         //update socket -------------------------------------------
         socketHolder->lastSent = sendPackageTCP.Seq_Num;
+
+
 
         // if (socketHolder->lastSent == 0) {socketHolder->nextExpected = 0;}
         // else{socketHolder->nextExpected = 1;}    
@@ -138,9 +144,13 @@ module TransportP{
         //time out connection
         //packet resender
         //normal sender
+      
         uint16_t i;
         uint8_t j; 
+        sendTCPInfo* TCPinfo; // has socket_t, flag, payload, length
         socket_store_t * mySocket;
+        socket_store_t * resendSocket;
+         socket_store_t * sendSocket;
         if (call Connections.isEmpty() == TRUE)
             {
                 return;
@@ -168,13 +178,54 @@ module TransportP{
         //come back to this
          //  send_buff(i, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length
 //if there is/are packets in the resend queue for this socket
+            //TCPinfo; // has socket_t, flag, payload, length
             if (call ReSendQueue.empty() == FALSE) //  how do i check for the specific socket?
             {
                 for (j = 0; j < call ReSendQueue.size(); j++)
                 {
-                    //if ()
+                    TCPinfo = call ReSendQueue.element(j);
+                   
+                    resendSocket = call Connections.getPointer(TCPinfo->socKey);
+                   
+                   if (resendSocket->RTT < call LocalTime.get())
+                   {
+                     //send packet
+                     //update RTT and put them back in the resend queue
+
+                   }
+
+                  
+
                 }
             }
+            else if (call SendQueue.empty() == FALSE)
+            {
+                //send data through sliding window sender type
+                //checking effective window
+                for (j = 0; j < call ReSendQueue.size(); j++)
+                {
+                    TCPinfo = call SendQueue.element(j);
+                   
+                    sendSocket = call Connections.getPointer(TCPinfo->socKey);
+                   
+
+                   //sendSocket->effectiveWindow
+                   //think about it
+
+                  
+
+                }
+
+            }
+
+            /*
+
+            Else if (there is a packet/packets in the send buffer that needs to be sent from this socket //normal sender
+            Send the first packet and move it to the resend que
+
+
+            */
+
 
 
 
@@ -273,7 +324,7 @@ module TransportP{
         case LISTEN:
         case SYN_SENT:
         case SYN_RCVD:
-        case ESTABLISHED:
+        case ESTABLISHED: // right here, writes to the send buffer
         case CLOSE_WAIT:
             //get size of buffer
             for(written=0; socketHolder->sendBuff[written] != '\0'; written++){} 
@@ -488,19 +539,26 @@ module TransportP{
 
                     if(mySegment->Len == 0){ //this is a normal ack pack
                         //update socket
+                        updateSenderSlideWindow(curConection->src, mySegment, 0);
                         send_buff(curConection->src, ACK, curConection->lastSent +1, curConection->lastRcvd + 1, Empty, 0); //update this
 
                         //stop resend for data
+                       // updateSenderSlideWindow(curConection->src, mySegment, 0);
+
                     }
                     else{ // has data   //Only need to ipmlement this if you send more than one packet of data       
                         //update socket
+                        
                         dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
+                       
                         readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
 
                         seq = curConection->lastAck + 1;
 
                         send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
                         curConection->nextExpected = seq + 1;
+                        //updateRecieverSlideWindow(curConection->src, mySegment, 0);
+                        
 
                         //make ack packet
                         //store pack for resend
@@ -516,6 +574,7 @@ module TransportP{
                     dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
 
                     send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
+                    updateRecieverSlideWindow(curConection->src, mySegment, 0);
                     return SUCCESS;
                 }
                 else if(mySegment->Flags == FIN){
@@ -651,7 +710,7 @@ module TransportP{
         case CLOSED: 
             socketHolder->state = SYN_SENT; //Change the state of the socket
             dbg(TRANSPORT_CHANNEL, "STATE: CLOSED -> SYN_SENT\n");
-            send_buff(fd, SYN, inSeq, 0, Empty, 0); //make and send a packet //send buffer
+            send_buff(fd, SYN, inSeq, 0, Empty, 0); //ack,payload, len packet,  //make and send a packet //send buffer
             return SUCCESS;
             break;  
         case LISTEN:
@@ -770,6 +829,77 @@ module TransportP{
             return SUCCESS;
         }
     }
+
+
+    error_t updateSenderSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen)
+    {
+	    //lastSent is already updated here. but what about the other variables?
+	    //??????????
+	    socket_store_t * socketHolder ;
+	    uint8_t *buff = tcpSegment->payload;
+
+        if (!(call Connections.contains(fd))) return FAIL;
+        socketHolder = call Connections.getPointer(fd);
+
+    /*
+	    if (socketHolder->flag == ACK && socketHolder->lastAck != socketHolder->lastRcvd )
+	    {
+	    socketHolder -> lastAck = socketHolder->lastRcvd; //maybe change this to socketHolder->lastRcvd;????
+	
+	    }
+       */ 
+
+	    if ((socketHolder->lastSent - socketHolder->lastAck) <= tcpSegment->Advertised_Window) //lecture 13 slide 58, advertised window from reciever;
+	    {
+		    if (socketHolder->lastAck <= socketHolder->lastSent && socketHolder->lastSent <= socketHolder->lastWritten) // lecture 13 slide 55
+		    {
+			    //effective window: how much new data it is OK for sender to currently send
+			    socketHolder->effectiveWindow = tcpSegment->Advertised_Window - (socketHolder->lastSent - socketHolder->lastAck);
+				dbg(TRANSPORT_CHANNEL, "effective window updating: %d", socketHolder->effectiveWindow);
+                return SUCCESS;
+		    }   
+		
+	
+    	}
+        return SUCCESS;
+
+    }
+
+
+
+
+
+
+    //call in timer before send
+    error_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen)
+    {
+	//lastSent is already updated here. but what about the other variables
+	//this happens after read
+
+	    uint8_t *buff = tcpSegment->payload;
+        socket_store_t * socketHolder;
+	    if (!(call Connections.contains(fd))) return FAIL;
+        socketHolder = call Connections.getPointer(fd);
+
+
+	    if ((socketHolder->lastRcvd - socketHolder->lastRead) <= SOCKET_BUFFER_SIZE)
+	    {
+		    if (socketHolder->lastRead < socketHolder->nextExpected)
+		    {
+			    if (socketHolder->nextExpected <= socketHolder->lastRcvd + 1)
+			    {
+				    tcpSegment->Advertised_Window = SOCKET_BUFFER_SIZE - ((socketHolder->nextExpected - 1) - socketHolder->lastRead);
+                    dbg(TRANSPORT_CHANNEL, "Advertised Window updated, it's now %d \n", tcpSegment->Advertised_Window);
+				    return SUCCESS;
+
+			    }
+		    }
+	    }	
+    	return SUCCESS;
+    }   
+
+
+
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length){
         Package->src = (uint16_t)TOS_NODE_ID;
         Package->dest = sock->dest.addr;
