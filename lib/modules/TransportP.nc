@@ -66,7 +66,6 @@ module TransportP{
   implementation{    
 
     // Globals
-
     const socket_t NULLSocket = 0;
     uint8_t *Empty;
     uint16_t ipSeq = 1;
@@ -153,16 +152,17 @@ module TransportP{
          socket_store_t * sendSocket;
         if (call Connections.isEmpty() == TRUE)
             {
-                return;
+                return; //don't do anything
             }
 
         for (i = 1; i-1 < call Connections.size(); i++ )
         {
             mySocket = call Connections.getPointer(i);
 
-            if (mySocket->state == TIME_WAIT) //not sure about the 2times MSL
+            if (mySocket->state == TIME_WAIT && mySocket->TTD < call LocalTime.get())
             {
                 mySocket->state = CLOSED;
+                dbg(TRANSPORT_CHANNEL, "STATE: TIME_WAIT -> CLOSED\n");
                 call Connections.remove(i);
             }
 
@@ -170,9 +170,9 @@ module TransportP{
            // Transport.close(i);
 
           /* if (mySocket->TTD < call LocalTime.get())
-           {
+            {
                 call Transport.close(i);
-           }
+            }
            */
 
         //come back to this
@@ -517,7 +517,22 @@ module TransportP{
                 }
             case CLOSE_WAIT:
             case ESTABLISHED: //NOTE: everything below should be updated
-                if(mySegment->Flags == ACK){
+                if(mySegment->Flags & FIN){
+                    curConection-> state = CLOSE_WAIT;
+                    dbg(TRANSPORT_CHANNEL, "STATE: ESTABLISHED -> CLOSE_WAIT\n");
+
+                    //if sender
+
+                    //send_buff(curConection->src, ACK, curConection->lastSent + 1, mySegment->Seq_Num + 1, Empty, 0); //update this
+
+                    //call timer first or after?
+
+                    //if reciver assume sender is out of things to send.
+                    call Transport.close(curConection->src); 
+                    return SUCCESS;
+                    //timer? or command most likey command
+                }
+                if(mySegment->Flags & ACK){
                     if(curConection->lastAck < mySegment->Acknowledgment && mySegment->Acknowledgment <= curConection->lastSent + 1){
                         curConection->lastAck = mySegment->Acknowledgment;
                         //Any segments on the retransmission queue that are thereby entirely acknowledged are removed.
@@ -576,21 +591,6 @@ module TransportP{
                     send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
                     updateRecieverSlideWindow(curConection->src, mySegment, 0);
                     return SUCCESS;
-                }
-                else if(mySegment->Flags == FIN){
-                    curConection-> state = CLOSE_WAIT;
-                    dbg(TRANSPORT_CHANNEL, "STATE: ESTABLISHED -> CLOSE_WAIT\n");
-
-                    //if sender
-
-                    //send_buff(curConection->src, ACK, curConection->lastSent + 1, mySegment->Seq_Num + 1, Empty, 0); //update this
-
-                    //call timer first or after?
-
-                    //if reciver assume sender is out of things to send.
-                    call Transport.close(curConection->src); 
-                    return SUCCESS;
-                    //timer? or command most likey command
                 }
                 else if(mySegment->Flags == RESET){}
                 else if(mySegment->Flags == URG){}
@@ -753,22 +753,7 @@ module TransportP{
                 ESTABLISHED state.*/
 
             case ESTABLISHED: //Starts the close
-                //sudo Code:
-                    //Set state
-                    //Send packet
-                    //Set timmer
-                /*Queue this until all preceding SENDs have been segmentized,
-                then form a FIN segment and send it.  In any case, enter FIN-
-                WAIT-1 state.*/
-
                 mySocket->state = FIN_WAIT_1;
-
-                seq = mySocket->lastSent + 1;
-
-                //send_buff(fd, FIN, seq, mySocket->lastRcvd +  (mySocket->lastSent - mySocket->lastAck), Empty, 0); //update this
-                send_buff(fd, FIN, seq, mySocket->lastRcvd + 1, Empty, 0); //update this
-                //udate socket and set timmer
-
                 return SUCCESS;
                 break;
             case FIN_WAIT_1: case FIN_WAIT_2:
