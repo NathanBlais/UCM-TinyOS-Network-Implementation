@@ -226,7 +226,7 @@ implementation{
       char buff[SOCKET_BUFFER_SIZE];
 
 
-      call Transport.read((socket_t)port, &buff, bufflen);
+      call Transport.read((socket_t)port, buff, bufflen);
       dbg(GENERAL_CHANNEL, "Message Read:%s\n", buff);
    }
 

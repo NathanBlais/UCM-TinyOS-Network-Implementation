@@ -240,7 +240,7 @@ module TransportP{
                 //fill later  fill with resend stuff
             }
             else if(mySocket->lastWritten >= mySocket->lastSent){  //of there is data to be sent
-                uint8_t buffSize, i;
+                uint8_t buffSize; // is already declared in line 202
                 uint8_t dataBuffer[SOCKET_BUFFER_SIZE];
                 uint8_t sendDataHolder = 0;
                 for (i = 0; i < SOCKET_BUFFER_SIZE; i++)
@@ -277,7 +277,7 @@ module TransportP{
                                 dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
                                 dbg(TRANSPORT_CHANNEL, "Message to send is:%s\n", dataBuffer);
                                 dbg(TRANSPORT_CHANNEL, "mySocket->lastRcvd + 1 %d\n",mySocket->lastRcvd + 1);
-                                send_buff(mySocket->src, ACK, mySocket->lastAck + buffSize, mySocket->lastRcvd + 1 , &dataBuffer, buffSize);
+                                send_buff(mySocket->src, ACK, mySocket->lastAck + buffSize, mySocket->lastRcvd + 1 , dataBuffer, buffSize);
                                 buffSize = 0;
                             }
                             else{
@@ -813,10 +813,11 @@ module TransportP{
         return buffSize;
     }
         
-    command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen);{
+    command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen){
         uint8_t buffSize, has_read;
         socket_store_t * socketHolder;
-        socketBuff = socketHolder->rcvdBuff;
+        
+        uint8_t *socketBuff = socketHolder->rcvdBuff; //recheck with nathan
         dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
 
         if (!(call Connections.contains(fd))) return 0;
