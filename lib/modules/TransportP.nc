@@ -111,7 +111,7 @@ module TransportP{
                 break;  
             case SYN_RCVD: case ESTABLISHED: case FIN_WAIT_1: case FIN_WAIT_2: case CLOSE_WAIT:
             if(length == 0){
-            //    AW = updateRecieverSlideWindow(socKey, &sendPackageTCP);
+                //AW = updateRecieverSlideWindow(socKey, &sendPackageTCP);
                 AW = 5;
             }
             else{
@@ -807,9 +807,6 @@ module TransportP{
 
         strcat((socketHolder->rcvdBuff), buff);
 
-        if (socketHolder->lastRead == 0) {socketHolder->lastRead = 1;}
-        else{socketHolder->lastRead = 0;}
-
         return buffSize;
     }
         
@@ -1040,24 +1037,26 @@ module TransportP{
 
 	    uint8_t *buff = tcpSegment->payload;
         socket_store_t * socketHolder;
-	    if (!(call Connections.contains(fd))) return FAIL;
+	    if (!(call Connections.contains(fd))) return 0;
         socketHolder = call Connections.getPointer(fd);
 
 
 	    if ((socketHolder->lastRcvd - socketHolder->lastRead) <= SOCKET_BUFFER_SIZE)
 	    {
+            dbg(TRANSPORT_CHANNEL, "socketHolder->lastRcvd - socketHolder->lastRead %d <= SOCKET_BUFFER_SIZE %d", socketHolder->lastRcvd - socketHolder->lastRead, SOCKET_BUFFER_SIZE);
 		    if (socketHolder->lastRead < socketHolder->nextExpected)
 		    {
+                //dbg(TRANSPORT_CHANNEL, "socketHolder->lastRcvd - socketHolder->lastRead%d"
 			    if (socketHolder->nextExpected <= socketHolder->lastRcvd + 1)
 			    {
 				    tcpSegment->Advertised_Window = SOCKET_BUFFER_SIZE - ((socketHolder->nextExpected - 1) - socketHolder->lastRead);
                     dbg(TRANSPORT_CHANNEL, "Advertised Window updated, it's now %d \n", tcpSegment->Advertised_Window);
-				    return SUCCESS;
+				    return tcpSegment->Advertised_Window;
 
 			    }
 		    }
 	    }	
-    	return SUCCESS;
+    	return 0;
     }   
 
 

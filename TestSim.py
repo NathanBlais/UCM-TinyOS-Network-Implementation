@@ -20,7 +20,7 @@ class TestSim:
     CMD_CLIENT_CLOSE = 7
     CMD_APP_SERVER = 8
     CMD_APP_CLIENT = 9
-    CMD_SERVER_READ=15
+    CMD_SERVER_READ = 15
     CMD_ERROR = 10
     CMD_APP_SEND = 11
 
@@ -157,7 +157,7 @@ class TestSim:
         self.sendCMD(self.CMD_CLIENT_CLOSE, address, "{0}{1}{2}{3}".format(chr(address), chr(sourcePort), chr(dest), chr(destPort)));
                             #[client adress] [srcPort] [dest] [destPort]
 
-    def cmdServerRead(self, address, port):
+    def cmdServerRead(self, address, port, bufflen):
         print 'Server Calling Read for', address, port;
         self.sendCMD(self.CMD_SERVER_READ, address, "{0}{1}".format(chr(port), chr(bufflen)));
 
@@ -184,9 +184,6 @@ def main():
     #Project 4
     s.addChannel(s.APPLICATION_CHANNEL);
 
-                   event void CommandHandler.cmdServerRead(uint8_t port, uint16_t  bufflen){
-
-
 #####***DVR TEST***##### 
 
     s.runTime(1);
@@ -210,8 +207,9 @@ def main():
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestClient(1,8,6,10, "Hello, bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    s.runTime(20);
+    s.runTime(30);
     s.cmdServerRead(6,10,12);
+    s.runTime(1);
     #s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
     #s.runTime(200);
 

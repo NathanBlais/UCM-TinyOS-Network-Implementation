@@ -85,7 +85,7 @@ implementation{
             
             case CMD_SERVER_READ:
                 dbg(COMMAND_CHANNEL, "Command Type: Server Read\n");
-                signal CommandHandler.cmdServerRead(buff[0], buff[2]);
+                signal CommandHandler.cmdServerRead(buff[0], buff[1]);
                 break;
 
             case CMD_KILL:

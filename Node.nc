@@ -224,6 +224,8 @@ implementation{
 
    event void CommandHandler.cmdServerRead(uint8_t port, uint16_t  bufflen){
       char buff[SOCKET_BUFFER_SIZE];
+      uint8_t i;
+      for (i = 0; i < SOCKET_BUFFER_SIZE; i++) buff[i] = '\0';
 
 
       call Transport.read((socket_t)port, buff, bufflen);
