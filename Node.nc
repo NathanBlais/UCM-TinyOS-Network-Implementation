@@ -206,8 +206,8 @@ implementation{
 
       //for(i=0; payload[i] != '\0'; i++ ){}
 
-      dbg(TRANSPORT_CHANNEL, "sizeof(payload): %d\n", i);
-      dbg(TRANSPORT_CHANNEL, "payload: %s\n", payload);
+      //dbg(TRANSPORT_CHANNEL, "sizeof(payload): %d\n", i);
+      //dbg(TRANSPORT_CHANNEL, "payload: %s\n", payload);
 
 
       //AmountWritten = 
@@ -220,6 +220,14 @@ implementation{
 
    event void CommandHandler.cmdClientClose(uint8_t address, uint8_t srcPort, uint8_t destination, uint8_t destPort){
       call Transport.close(srcPort);
+   }
+
+   event void CommandHandler.cmdServerRead(uint8_t port, uint16_t  bufflen){
+      char buff[SOCKET_BUFFER_SIZE];
+
+
+      call Transport.read((socket_t)port, &buff, bufflen);
+      dbg(GENERAL_CHANNEL, "Message Read:%s\n", buff);
    }
 
 

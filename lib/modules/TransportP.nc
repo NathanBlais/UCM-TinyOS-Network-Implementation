@@ -83,7 +83,7 @@ module TransportP{
     
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length);
     
-     void send_out(){
+    void send_out(){
         tcpHeader sendPackageTCP;
         pack sendIPpackage;
         uint8_t AW;
@@ -99,8 +99,8 @@ module TransportP{
         socket_store_t * socketHolder = call Connections.getPointer(socKey);
 
         dbg(TRANSPORT_CHANNEL,"error_t send_out Called\n");
-        dbg(TRANSPORT_CHANNEL,"socketHolder->state %d\n", socketHolder->state);
-        dbg(TRANSPORT_CHANNEL,"socKey %d\n", info->socKey);
+        dbg(TRANSPORT_CHANNEL,"\tsocketHolder->state %d\n", socketHolder->state);
+        dbg(TRANSPORT_CHANNEL,"\tsocKey %d\n", info->socKey);
 
 
         switch (socketHolder->state)
@@ -134,10 +134,10 @@ module TransportP{
         sendPackageTCP.Advertised_Window = AW;
         memcpy(sendPackageTCP.payload, payload, length);
         /*END OF: Make the TCP Packet*/
-        makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, PACKET_MAX_PAYLOAD_SIZE); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
+        makeIPpack(&sendIPpackage, &sendPackageTCP, socketHolder, length + TCP_HEADER_LENGTH); //maybe reduce the PACKET_MAX_PAYLOAD_SIZE
         ipSeq = ipSeq + 1;
 
-        dbg(TRANSPORT_CHANNEL,"length %d\n", length);
+        dbg(TRANSPORT_CHANNEL,"\tlength %d\n", length);
         dbg(TRANSPORT_CHANNEL,"sendPackageTCP.Len %d\n", sendPackageTCP.Len);
        // dbg(TRANSPORT_CHANNEL,"(sendIPpackage.package).Len %d\n", (sendIPpackage.payload).Len);
 
@@ -146,8 +146,6 @@ module TransportP{
 
         //update socket -------------------------------------------
         socketHolder->lastSent = sendPackageTCP.Seq_Num;
-
-
 
         // if (socketHolder->lastSent == 0) {socketHolder->nextExpected = 0;}
         // else{socketHolder->nextExpected = 1;}    
@@ -164,11 +162,11 @@ module TransportP{
     error_t send_buff(socket_t socKey, uint8_t flag, uint8_t seq, uint8_t ack, uint8_t* payload, uint8_t length){
         //put packets in a que 
         socket_store_t * socketHolder = call Connections.getPointer(socKey);
-        dbg(TRANSPORT_CHANNEL,"socKey %d\n", socKey);
+        dbg(TRANSPORT_CHANNEL,"Called send_buff()\n");
 
-        dbg(TRANSPORT_CHANNEL,"socketHolder->state %d\n", socketHolder->state);
-
-        dbg(TRANSPORT_CHANNEL,"length %d\n", length);
+        dbg(TRANSPORT_CHANNEL,"\tsocKey %d\n", socKey);
+        dbg(TRANSPORT_CHANNEL,"\tsocketHolder->state %d\n", socketHolder->state);
+        dbg(TRANSPORT_CHANNEL,"\tlength %d\n", length);
 
         if(!call SendPool.empty()){
             sendTCPInfo *input = call SendPool.get();
@@ -238,12 +236,15 @@ module TransportP{
                     Add a FIN to the ACK flag for the sending of data
                 Send it according to the sliding window*/
 
-            if(mySocket->lastSent > mySocket->lastAck){
-                //fill later
+            if(mySocket->lastSent > mySocket->lastAck){ //if there is data in flight
+                //fill later  fill with resend stuff
             }
-            else if(mySocket->lastWritten > mySocket->lastSent){
-                uint8_t buffSize;
+            else if(mySocket->lastWritten >= mySocket->lastSent){  //of there is data to be sent
+                uint8_t buffSize, i;
                 uint8_t dataBuffer[SOCKET_BUFFER_SIZE];
+                uint8_t sendDataHolder = 0;
+                for (i = 0; i < SOCKET_BUFFER_SIZE; i++)
+			        dataBuffer[i] = '\0';
                 switch(mySocket->state){
                     case ESTABLISHED: case CLOSE_WAIT:
                         dbg(TRANSPORT_CHANNEL,"mySocket->lastWritten %d | mySocket->lastSent %d\n", mySocket->lastWritten, mySocket->lastSent);
@@ -251,35 +252,41 @@ module TransportP{
 
                         //figure out amount of data to send
 
-                        dbg(TRANSPORT_CHANNEL, "Message in Socket is %s\n", mySocket->sendBuff);
+                        //dbg(TRANSPORT_CHANNEL, "Message in Socket is %s\n", mySocket->sendBuff);
 
 
                         for(buffSize=0; mySocket->sendBuff[buffSize] != '\0'; buffSize++){} 
+                        //dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
+                        buffSize = buffSize - mySocket->lastAck +1;
                         dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
 
-                        if(mySocket->effectiveWindow > buffSize){
+                        if(mySocket->effectiveWindow >= buffSize){
                             //keep buffSize the same
                         }
                         else{
                             buffSize = mySocket->effectiveWindow;
+                            dbg(TRANSPORT_CHANNEL, "form effectiveWindow buffSize %d\n", buffSize);
                         }
 
-                        dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
+                        //dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
 
                         
                         while(buffSize > 0){
                             if (TCP_PACKET_MAX_PAYLOAD_SIZE > buffSize){
-                                memcpy(dataBuffer, (mySocket->sendBuff), buffSize);
+                                memcpy(dataBuffer, &(mySocket->sendBuff)[sendDataHolder + mySocket->lastAck - 1], buffSize);
                                 dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
-                                dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", dataBuffer);
+                                dbg(TRANSPORT_CHANNEL, "Message to send is:%s\n", dataBuffer);
+                                dbg(TRANSPORT_CHANNEL, "mySocket->lastRcvd + 1 %d\n",mySocket->lastRcvd + 1);
                                 send_buff(mySocket->src, ACK, mySocket->lastAck + buffSize, mySocket->lastRcvd + 1 , &dataBuffer, buffSize);
                                 buffSize = 0;
                             }
                             else{
-                                memcpy(dataBuffer, &(mySocket->sendBuff), TCP_PACKET_MAX_PAYLOAD_SIZE);
-                                dbg(TRANSPORT_CHANNEL, "Message to send is %s\n", dataBuffer);
+                                memcpy(dataBuffer, &(mySocket->sendBuff)[sendDataHolder + mySocket->lastAck - 1], TCP_PACKET_MAX_PAYLOAD_SIZE);
+                                dbg(TRANSPORT_CHANNEL, "Message to send is:%s\n", dataBuffer);
                                 send_buff(mySocket->src, ACK, mySocket->lastAck + TCP_PACKET_MAX_PAYLOAD_SIZE, mySocket->lastRcvd + 1 , dataBuffer, TCP_PACKET_MAX_PAYLOAD_SIZE);
+                                dbg(TRANSPORT_CHANNEL, "mySocket->lastRcvd + 1 %d\n", mySocket->lastRcvd + 1);
                                 buffSize = buffSize - TCP_PACKET_MAX_PAYLOAD_SIZE;
+                                sendDataHolder = sendDataHolder + TCP_PACKET_MAX_PAYLOAD_SIZE;
                             }
                         }
                         break;
@@ -546,17 +553,16 @@ module TransportP{
                 //any segments on the retransmission queue which are thereby acknowledged should be removed.
                 if(curConection->lastSent + 1 == mySegment->Acknowledgment){
                     dbg(TRANSPORT_CHANNEL, "STATE: SYN_SENT -> ESTABLISHED\n");
-                    curConection->state = ESTABLISHED;
 
                     // if(curConection->lastSent == 0){seq = 1;}
                     // else{seq = 0;}
 
-                    seq = mySegment->Acknowledgment;
+                    //seq = mySegment->Acknowledgment;
 
-                    send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
-                    curConection->lastAck = mySegment->Acknowledgment- 1;
+                    //send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
+                    curConection->lastAck = mySegment->Acknowledgment - 1;
                     // curConection->nextExpected = seq + 1;
-
+                    curConection->state = ESTABLISHED;
                     return SUCCESS;
                 }
 
@@ -591,8 +597,12 @@ module TransportP{
                 if(mySegment->Flags & ( SYN | ACK )) {
                     if(curConection->lastSent + 1 == mySegment->Acknowledgment){
                 //any segments on the retransmission queue which are thereby acknowledged should be removed.
+
                         curConection->state = ESTABLISHED;
                         dbg(TRANSPORT_CHANNEL, "STATE: SYN_RCVD -> ESTABLISHED\n");
+
+                        if(mySegment->Len > 0)
+                            goto ESTAB;
 
                         seq = mySegment->Acknowledgment;
                         send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
@@ -652,13 +662,14 @@ module TransportP{
                 }
             case CLOSE_WAIT:
             case ESTABLISHED: //NOTE: everything below should be updated
+                ESTAB:
                 if(mySegment->Flags & FIN){
                     curConection-> state = CLOSE_WAIT;
                     dbg(TRANSPORT_CHANNEL, "STATE: ESTABLISHED -> CLOSE_WAIT\n");
 
                     //if(mySegment->Len == 0 && //if there is data in the reciver buffer && th){ //this is needed for server to close
                         //update socket
-                        curConection->lastAck = mySegment->Acknowledgment;
+                        curConection->lastAck = mySegment->Acknowledgment - 1;
 
                         updateSenderSlideWindow(curConection->src, mySegment, 0);
                         call Transport.close(curConection->src);
@@ -673,12 +684,13 @@ module TransportP{
                     }
                     if(mySegment->Acknowledgment > curConection->lastSent + 1){//ACK acks something not yet sent
                         //then send an ACK, drop the segment, and return.
+                        dbg(TRANSPORT_CHANNEL, "mySegment->Acknowledgment %d > curConection->lastSent + 1 %d\n",mySegment->Acknowledgment,curConection->lastSent + 1);
                         dbg(TRANSPORT_CHANNEL, "recived Ack for something not yet sent\n");
 
                         return SUCCESS;
                     }
                     if(curConection->lastAck < mySegment->Acknowledgment && mySegment->Acknowledgment <= curConection->lastSent + 1){
-                        curConection->lastAck = mySegment->Acknowledgment;
+                        curConection->lastAck = mySegment->Acknowledgment - 1;
                         //Any segments on the retransmission queue that are thereby entirely acknowledged are removed.
                     }
 
@@ -691,7 +703,7 @@ module TransportP{
                     if(mySegment->Len == 0){ //this is a normal ack pack
                         //update socket
                         updateSenderSlideWindow(curConection->src, mySegment, 0);
-                        send_buff(curConection->src, ACK, curConection->lastSent +1, curConection->lastRcvd + 1, Empty, 0); //update this
+                        //send_buff(curConection->src, ACK, curConection->lastSent +1, curConection->lastRcvd + 1, Empty, 0); //update this
 
                         //stop resend for data
                        // updateSenderSlideWindow(curConection->src, mySegment, 0);
@@ -705,7 +717,7 @@ module TransportP{
                         readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
 
                         seq = curConection->lastAck + 1;
-                        send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->nextExpected, Empty, 0); //update this
+                        send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->lastRcvd + 1, Empty, 0); //update this
                         curConection->nextExpected = seq + 1;
                     }
                 }
@@ -783,7 +795,7 @@ module TransportP{
         socket_store_t * socketHolder =  call Connections.getPointer(fd);
         uint8_t *buff = tcpSegment->payload;
 
-        dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
+        dbg(TRANSPORT_CHANNEL, "Transport Called readDataToBuff\n");
 
         for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
         if (bufflen > buffSize){
@@ -801,32 +813,72 @@ module TransportP{
         return buffSize;
     }
         
-    command uint16_t Transport.read(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen){
-        // uint8_t buffSize;
-        // socket_store_t * socketHolder =  call Connections.getPointer(fd);
-        // uint8_t *buff = tcpSegment->payload;
+    command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen);{
+        uint8_t buffSize, has_read;
+        socket_store_t * socketHolder;
+        socketBuff = socketHolder->rcvdBuff;
+        dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
 
-        // dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
+        if (!(call Connections.contains(fd))) return 0;
+        socketHolder = call Connections.getPointer(fd);
 
-        // for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
-        // if (bufflen > buffSize){
-        //     // will write the max ammount
-        // }
-        // else{
-        //     buffSize = bufflen;
-        // }
+        if (socketBuff == NULL || bufflen < 1) return 0;
 
-        // strcat((socketHolder->rcvdBuff), buff);
+        for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
+        
 
-        // if (socketHolder->lastRead == 0) {socketHolder->lastRead = 1;}
-        // else{socketHolder->lastRead = 0;}
+        switch (socketHolder->state)
+        { 
+        case CLOSED: 
+            dbg(TRANSPORT_CHANNEL,"error:  connection does not exist\n");
+            break;  
+        case FIN_WAIT_1:
+        case FIN_WAIT_2:
+        case TIME_WAIT:
+        case CLOSING:
+        case ESTABLISHED: // right here, writes to the send buffer
+        case CLOSE_WAIT:
 
-        // return buffSize;
+        //if there is not enuph data to put in the buffer Queue for later
+            //insead return dbg ("not enough data has been recived")
+
+            dbg(TRANSPORT_CHANNEL, "\t\tbufflen = %d\n", bufflen);
+            if (bufflen > SOCKET_BUFFER_SIZE ){
+               has_read = SOCKET_BUFFER_SIZE;
+            }
+            else{
+                has_read = bufflen;
+            }
+
+            socketHolder->lastRead = has_read;
+            
+            // if (bufflen > written){
+            //    // will write the max ammount
+            // }
+            // else{
+            //     written = bufflen;
+            // }
+            memcpy(buff, socketHolder->rcvdBuff, has_read);
+            dbg(TRANSPORT_CHANNEL, "Message written to sendBuff is %s\n", socketHolder->sendBuff); //fix
+
+            //call sendDataTimer.startPeriodic(81000); //could be set to a diffrent number
+            return has_read;
+        case LISTEN:
+        case SYN_SENT:
+        case LAST_ACK:
+        case SYN_RCVD:
+            dbg(TRANSPORT_CHANNEL,"error: connection hasn't been opened\n");
+            break;
+        default:
+            dbg(TRANSPORT_CHANNEL, "WRONG_STATE_ERROR: \"%d\" is an incompatable state or does not match any known states.\n", socketHolder->state);
+            break;
+        }
+        return 0;
     }
 
     command error_t Transport.connect(socket_t fd, socket_addr_t * addr){
         socket_store_t * socketHolder ;
-        uint8_t inSeq = 0; //choose inital sequence number
+        uint8_t inSeq = 1; //choose inital sequence number
         dbg(TRANSPORT_CHANNEL, "connect() was called\n");
         if (!(call Connections.contains(fd))) return FAIL;
         socketHolder = call Connections.getPointer(fd);
@@ -835,7 +887,7 @@ module TransportP{
         case CLOSED: 
             socketHolder->state = SYN_SENT; //Change the state of the socket
             dbg(TRANSPORT_CHANNEL, "STATE: CLOSED -> SYN_SENT %d\n",socketHolder->state );
-            send_buff(fd, SYN, inSeq, 0, Empty, 0); //ack,payload, len packet,  //make and send a packet //send buffer
+            send_buff(fd, SYN, inSeq, 1, Empty, 0); //ack,payload, len packet,  //make and send a packet //send buffer
             return SUCCESS;
             break;  
         case LISTEN:
@@ -967,7 +1019,7 @@ module TransportP{
 		    {
 			    //effective window: how much new data it is OK for sender to currently send
 			    socketHolder->effectiveWindow = tcpSegment->Advertised_Window - (socketHolder->lastSent - socketHolder->lastAck);
-				dbg(TRANSPORT_CHANNEL, "effective window updating: %d", socketHolder->effectiveWindow);
+				dbg(TRANSPORT_CHANNEL, "effective window updating: %d\n", socketHolder->effectiveWindow);
                 return SUCCESS;
 		    }   
 		

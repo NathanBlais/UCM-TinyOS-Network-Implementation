@@ -82,6 +82,11 @@ implementation{
                 dbg(COMMAND_CHANNEL, "Command Type: Client Close\n");
                 signal CommandHandler.cmdClientClose(buff[0], buff[1], buff[2], buff[3]);
                 break;
+            
+            case CMD_SERVER_READ:
+                dbg(COMMAND_CHANNEL, "Command Type: Server Read\n");
+                signal CommandHandler.cmdServerRead(buff[0], buff[2]);
+                break;
 
             case CMD_KILL:
                 dbg(COMMAND_CHANNEL, "Command Type: Kill (Not Implemented)\n");

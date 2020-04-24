@@ -97,7 +97,7 @@ interface Transport{
     *    from the pass buffer. This may be shorter then bufflen
     */
     
-   command uint16_t read(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
+   command uint16_t read(socket_t fd, uint8_t *buff, uint16_t bufflen);
 
    /**
     * Attempts a connection to an address.
