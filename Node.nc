@@ -229,7 +229,7 @@ implementation{
 
 
       call Transport.read((socket_t)port, buff, bufflen);
-      dbg(GENERAL_CHANNEL, "Message Read:%s\n", buff);
+      dbg(GENERAL_CHANNEL, "Message Read from Application layer:%s\n", buff);
    }
 
 

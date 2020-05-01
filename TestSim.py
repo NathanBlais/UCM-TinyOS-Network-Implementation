@@ -168,6 +168,8 @@ def main():
     s.loadTopo("long_line.topo");
     #s.loadTopo("Project2Topo.topo");
     s.loadNoise("no_noise.txt");
+    #s.loadNoise("meyer-heavy.txt");
+    #s.loadNoise("some_noise.txt");
     s.bootAll();
     #General
     s.addChannel(s.COMMAND_CHANNEL);
@@ -200,18 +202,18 @@ def main():
     #####***TCP Test***##### 
     #s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestServer(6,10); #[adress] [port]
-    s.runTime(20);
+    s.runTime(400); #no noise 100, some noise 100
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestClient(1,8,6,10, "Hello, bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    s.runTime(30);
-    s.cmdServerRead(6,10,12);
-    s.runTime(1);
-    #s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
-    #s.runTime(200);
+    s.runTime(500);  #no noise 350, some noise 350
+    s.cmdServerRead(6,10,12); #[dest][destPort][length]
+    s.runTime(300);  #no noise 300, some noise 300
+    s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
+    s.runTime(200); #no noise 200, some noise 200
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);

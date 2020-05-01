@@ -712,17 +712,18 @@ module TransportP{
                     else{ // has data   //Only need to ipmlement this if you send more than one packet of data       
                         //update socket
                         
-                        dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
+                        dbg(TRANSPORT_CHANNEL, "Message Recived line 715:%s and mySegment->len %d \n",mySegment->payload, mySegment->Len);
                        
                         readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
 
+                        dbg(TRANSPORT_CHANNEL, "curConection->src 719:%d and mySegment->len %d \n",curConection->src, mySegment->Len);
                         seq = curConection->lastAck + 1;
                         send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->lastRcvd + 1, Empty, 0); //update this
                         curConection->nextExpected = seq + 1;
                     }
                 }
                 if(mySegment->Flags & PUSH){
-                    dbg(TRANSPORT_CHANNEL, "Message Recived:%s\n",mySegment->payload);
+                    dbg(TRANSPORT_CHANNEL, "Message Recived line 725:%s\n",mySegment->payload);
                     dbg(TRANSPORT_CHANNEL, "\tFinished reciving Message\n");
                     dbg(TRANSPORT_CHANNEL, "\t\tMessage:%s\n",curConection->rcvdBuff);
                     //call Transport.read(curConection->src)
@@ -794,19 +795,34 @@ module TransportP{
         uint8_t buffSize;
         socket_store_t * socketHolder =  call Connections.getPointer(fd);
         uint8_t *buff = tcpSegment->payload;
+        uint8_t size = bufflen + (sizeof(socketHolder->rcvdBuff)/sizeof(socketHolder->rcvdBuff[0]));
+        uint8_t holder[bufflen];
+        //holder[0] = '\0';
+        holder [bufflen] = '\0';
+        holder[bufflen+1] = '\0'; 
+        //int len;
 
-        dbg(TRANSPORT_CHANNEL, "Transport Called readDataToBuff\n");
+      //  dbg(TRANSPORT_CHANNEL, "Transport Called readDataToBuff\n");
 
-        for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
+        /*for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
         if (bufflen > buffSize){
             // will write the max ammount
         }
         else{
             buffSize = bufflen;
         }
+        */
+        
+     memcpy (holder, buff, bufflen );
 
-        strcat((socketHolder->rcvdBuff), buff);
+       dbg(TRANSPORT_CHANNEL, "holder after memcpy (holder, buff, bufflen); has:%s the value of bufflen is %d \n", holder, bufflen);
+       // strcat(holder, socketHolder->rcvdBuff);
 
+        strcat(socketHolder->rcvdBuff, holder);
+
+        
+       // memcpy(socketHolder->rcvdBuff, holder, size);
+        dbg(TRANSPORT_CHANNEL, "line 811 socketHolder->rcvdBuff:%s\n", socketHolder->rcvdBuff );
         return buffSize;
     }
         
@@ -849,6 +865,7 @@ module TransportP{
             }
 
             socketHolder->lastRead = has_read;
+            
             
             // if (bufflen > written){
             //    // will write the max ammount
