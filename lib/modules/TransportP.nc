@@ -87,6 +87,7 @@ module TransportP{
         tcpHeader sendPackageTCP;
         pack sendIPpackage;
         uint8_t AW;
+        tcpHeader* tempTCP;
         sendTCPInfo *info = call SendQueue.head();
 
         socket_t socKey = info->socKey;
@@ -95,6 +96,7 @@ module TransportP{
         uint8_t ack = info->ack; 
         pack* payload = &(info->payload);
         uint8_t length = info->length;
+        
 
         socket_store_t * socketHolder = call Connections.getPointer(socKey);
 
@@ -140,7 +142,9 @@ module TransportP{
         dbg(TRANSPORT_CHANNEL,"\tlength %d\n", length);
         dbg(TRANSPORT_CHANNEL,"sendPackageTCP.Len %d\n", sendPackageTCP.Len);
        // dbg(TRANSPORT_CHANNEL,"(sendIPpackage.package).Len %d\n", (sendIPpackage.payload).Len);
-
+         
+        tempTCP = &(sendIPpackage.payload);
+        dbg(TRANSPORT_CHANNEL,"\tpayload of send line 143: %s\n", tempTCP->payload);
 
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
 
@@ -400,7 +404,7 @@ module TransportP{
         TCB.src = fd;
         TCB.dest = *addr;
         TCB.state = CLOSED;
-        TCB.effectiveWindow = 5;  //NOTE:We Need to replace this value
+        TCB.effectiveWindow = 1;  //NOTE:We Need to replace this value
         TCB.TTD = 0;
         for (i = 0; i < SOCKET_BUFFER_SIZE; i++) {
 			TCB.sendBuff[i] = '\0';
@@ -502,7 +506,7 @@ module TransportP{
         uint8_t seq;
         tcpHeader* mySegment = (tcpHeader*) myMsg->payload;
         socket_store_t * curConection = call Connections.getPointer(mySegment->Dest_Port);
-
+         
         dbg(TRANSPORT_CHANNEL, "Transport.receive() Called\n");
         dbg(TRANSPORT_CHANNEL, "STATE: %d | FLAG: %d\n", curConection->state, mySegment->Flags);
 
@@ -510,7 +514,7 @@ module TransportP{
         // printSocket(mySegment->Dest_Port);
 
         dbg(TRANSPORT_CHANNEL, "INCOMING SEQ #: %d INCOMING ACK #: %d\n",mySegment->Seq_Num,mySegment->Acknowledgment);
-
+        dbg(TRANSPORT_CHANNEL, "mySegment->payload: %s\n", mySegment->payload);
         // //TO_DO: add check here to see if the packet has been seen before
                 //this means the sent packet was lost resend it again and extend the close time
 
@@ -712,11 +716,11 @@ module TransportP{
                     else{ // has data   //Only need to ipmlement this if you send more than one packet of data       
                         //update socket
                         
-                        dbg(TRANSPORT_CHANNEL, "Message Recived line 715:%s and mySegment->len %d \n",mySegment->payload, mySegment->Len);
+                        dbg(TRANSPORT_CHANNEL, "Message Recived line 719:%s and mySegment->len %d \n",mySegment->payload, mySegment->Len);
                        
                         readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
 
-                        dbg(TRANSPORT_CHANNEL, "curConection->src 719:%d and mySegment->len %d \n",curConection->src, mySegment->Len);
+                        dbg(TRANSPORT_CHANNEL, "curConection->src 723:%d and mySegment->len %d \n",curConection->src, mySegment->Len);
                         seq = curConection->lastAck + 1;
                         send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->lastRcvd + 1, Empty, 0); //update this
                         curConection->nextExpected = seq + 1;
@@ -776,8 +780,13 @@ module TransportP{
     command error_t Transport.receiveBuffer(pack* package){   
         if(!call Pool.empty()){
             pack *input;
+            //tcpHeader *TCPholder = package;
             input = call Pool.get();
+
+            //dbg(TRANSPORT_CHANNEL, "TCPholder->payload: %s\n", TCPholder->payload);
             memcpy(input, package, PACKET_MAX_PAYLOAD_SIZE);
+
+            //dbg(TRANSPORT_CHANNEL, "Transport.receive() Called\n");
 
             // Now that we have a value from the pool we can put it into our queue.
             // This is a FIFO queue.
@@ -813,7 +822,7 @@ module TransportP{
         }
         */
         
-     memcpy (holder, buff, bufflen );
+     memcpy (holder, buff, bufflen);
 
        dbg(TRANSPORT_CHANNEL, "holder after memcpy (holder, buff, bufflen); has:%s the value of bufflen is %d \n", holder, bufflen);
        // strcat(holder, socketHolder->rcvdBuff);
@@ -822,7 +831,7 @@ module TransportP{
 
         
        // memcpy(socketHolder->rcvdBuff, holder, size);
-        dbg(TRANSPORT_CHANNEL, "line 811 socketHolder->rcvdBuff:%s\n", socketHolder->rcvdBuff );
+        dbg(TRANSPORT_CHANNEL, "line 834 socketHolder->rcvdBuff:%s\n", socketHolder->rcvdBuff );
         return buffSize;
     }
         

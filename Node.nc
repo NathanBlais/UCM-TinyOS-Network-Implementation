@@ -36,6 +36,8 @@ implementation{
    pack sendPackage;
    am_addr_t nodes[10];
    uint16_t SEQ_NUM=1;
+   char toSend[] = {'A','B','C','D','E','F','G','H','I',
+      'J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
 
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t *payload, uint8_t length);
@@ -201,17 +203,14 @@ implementation{
       //call Transport.write(srcPort,payload,i);
       if(call Transport.connect(mySocket, &destAddr))
          return;
-
       //save the value here into a holder to read for bugtesting
-
       //for(i=0; payload[i] != '\0'; i++ ){}
-
       //dbg(TRANSPORT_CHANNEL, "sizeof(payload): %d\n", i);
       //dbg(TRANSPORT_CHANNEL, "payload: %s\n", payload);
-
-
       //AmountWritten = 
       call Transport.write(srcPort,payload,i);
+      //call Transport.write(srcPort,toSend,26);
+
 
       //add the payload to a que to be cut up and packaged to be sent after connection
 

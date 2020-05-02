@@ -161,6 +161,8 @@ class TestSim:
         print 'Server Calling Read for', address, port;
         self.sendCMD(self.CMD_SERVER_READ, address, "{0}{1}".format(chr(port), chr(bufflen)));
 
+   # def cmdServerChat(self, address, port, bufflen)
+
 def main():
     s = TestSim();
     s.runTime(10);
@@ -190,30 +192,35 @@ def main():
 
     s.runTime(1);
     #s.runTime(126); #Fastest time with a "151 | call advertiseTimer.startOneShot(6000);"
-    s.runTime(250);
-
-    # for i in range(1, 19):
+    s.runTime(300);
+    #for i in range(1, 19):
     #     s.routeDMP(i);
     #     s.runTime(1);
-    # s.runTime(10);
+    #s.runTime(10);
     #s.ping(2, 6, "Hi!");
     #s.runTime(100);
-
     #####***TCP Test***##### 
     #s.ping(1, 6, "I'll have you know I gr");
     s.cmdTestServer(6,10); #[adress] [port]
-    s.runTime(400); #no noise 100, some noise 100
+    s.runTime(40); #no noise 100, some noise 100
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
-    s.cmdTestClient(1,8,6,10, "Hello, bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    s.runTime(500);  #no noise 350, some noise 350
-    s.cmdServerRead(6,10,12); #[dest][destPort][length]
-    s.runTime(300);  #no noise 300, some noise 300
+    s.cmdTestClient(1,8,6,10, "Hello,_bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
+    s.runTime(200);  #no noise 350, some noise 350
+    s.cmdServerRead(6,10,26); #[dest][destPort][length]
+    s.runTime(1);  #no noise 300, some noise 300
     s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
-    s.runTime(200); #no noise 200, some noise 200
+    s.runTime(100); #no noise 200, some noise 200
+
+
+###***Chat Client and Server Test*** ###
+
+
+
+
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);
