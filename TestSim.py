@@ -20,7 +20,7 @@ class TestSim:
     CMD_CLIENT_CLOSE = 7
     CMD_SERVER_READ = 15
     CMD_CHAT_SERVER_SET = 16
-	CMD_CHAT_CLIENT_CMD = 17
+    CMD_CHAT_CLIENT_CMD = 17
 
     CMD_ERROR = 10
 
@@ -161,10 +161,10 @@ class TestSim:
         print 'Server Calling Read for', address, port;
         self.sendCMD(self.CMD_SERVER_READ, address, "{0}{1}".format(chr(port), chr(bufflen)));
 
-    def cmdChatServerSet(self, address)
+    def cmdChatServerSet(self, address):
         self.sendCMD(self.CMD_CHAT_SERVER_SET, address);
 
-    def cmdChatClientCmd(self, address, msg)
+    def cmdChatClientCmd(self, address, msg):
         self.sendCMD(self.CMD_CHAT_CLIENT_CMD, address, msg);
 
 def main():
@@ -218,7 +218,14 @@ def main():
     s.runTime(1);  #no noise 300, some noise 300
     s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
     s.runTime(100); #no noise 200, some noise 200
-
+    s.cmdChatClientCmd(1, "hello Josseline 42 \r\n");
+    s.runTime(1);
+    s.cmdChatClientCmd(1, "msg Hello Word! \r\n");
+    s.runTime(1);
+    s.cmdChatClientCmd(1, "whisper Nathan Hola \r\n");
+    s.runTime(1);
+    s.cmdChatClientCmd(1,"listusr \r\n" );
+    s.runTime(1);
 
 ###***Chat Client and Server Test*** ###
 
