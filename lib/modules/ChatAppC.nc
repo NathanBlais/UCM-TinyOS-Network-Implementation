@@ -4,7 +4,7 @@ configuration ChatAppC{
 
 implementation {
 	components ChatAppP;	
-	ChatApp = ChatAppP.ChatApp
+	ChatApp = ChatAppP.ChatApp;
 
 	components TransportC as Transport;
     ChatAppP.Transport -> Transport;  
