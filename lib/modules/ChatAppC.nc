@@ -4,7 +4,13 @@ configuration ChatAppC{
 
 implementation {
 	components ChatAppP;	
-	ChatApp = ChatAppP.ChatApp;
+	ChatApp = ChatAppP.ChatApp
+
+	components TransportC as Transport;
+    ChatAppP.Transport -> Transport;  
+
+	components new ListC(chatUser, 20) as UserList;
+    ChatAppP.UserList -> UserList;
 	
 	// components new HashmapC(socket_store_t, MAX_NUM_OF_SOCKETS) as Connections;
     // TransportP.Connections->Connections;

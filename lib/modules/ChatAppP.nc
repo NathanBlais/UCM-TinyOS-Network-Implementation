@@ -15,6 +15,11 @@
 module ChatAppP{
   provides interface ChatApp;
 
+  uses interface Transport;
+
+  uses interface List<chatUser> as UserList;
+
+
  // uses interface Hashmap<socket_store_t> as Connections; // hash table: list of connections
 
 //  uses interface LocalTime<TMilli>;
@@ -56,6 +61,22 @@ module ChatAppP{
 implementation{  
 
     command void ChatApp.SetupServer(){
+        socket_addr_t myAddr; //not realy needed exept to satisfy bind requirements
+        socket_t mySocket = call Transport.socket(1); //change to 41
+
+        if (mySocket != 1){
+            dbg(TRANSPORT_CHANNEL, "Could not retrive an available socket\n");
+            //return;
+            }
+
+        myAddr.addr = TOS_NODE_ID; //filled with usless info
+        myAddr.port = mySocket;    //filled with usless info
+
+        if(call Transport.bind(mySocket, &myAddr))
+            return;
+
+        if(call Transport.listen(mySocket))
+            return;
 
     }
 

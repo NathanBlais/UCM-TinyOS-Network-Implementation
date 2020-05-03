@@ -7,7 +7,8 @@
 #include "socket.h"
 
 enum{
-	SEND_BUFFER_SIZE=128
+	SEND_BUFFER_SIZE=128,
+	MAX_USER_NAME_LEN=10
 };
 
 typedef struct sendInfo{
@@ -52,6 +53,12 @@ typedef struct route{
         //add other values to determin 
         uint16_t TTL;          /* time to live */
 }route;
+
+typedef struct chatUser{
+		char name[MAX_USER_NAME_LEN];
+		uint8_t UsersPort;
+
+}chatUser;
 
 
 #endif /* PACK_BUFFER_H */
