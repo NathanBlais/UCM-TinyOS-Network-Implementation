@@ -20,8 +20,7 @@ class TestSim:
     CMD_CLIENT_CLOSE = 7
     CMD_SERVER_READ = 15
     CMD_CHAT_SERVER_SET = 16
-	CMD_CHAT_CLIENT_CMD = 17
-
+    CMD_CHAT_CLIENT_CMD = 17
     CMD_ERROR = 10
 
     # CHANNELS - see includes/channels.h
@@ -161,10 +160,10 @@ class TestSim:
         print 'Server Calling Read for', address, port;
         self.sendCMD(self.CMD_SERVER_READ, address, "{0}{1}".format(chr(port), chr(bufflen)));
 
-    def cmdChatServerSet(self, address)
+    def cmdChatServerSet(self, address):
         self.sendCMD(self.CMD_CHAT_SERVER_SET, address);
 
-    def cmdChatClientCmd(self, address, msg)
+    def cmdChatClientCmd(self, address, msg):
         self.sendCMD(self.CMD_CHAT_CLIENT_CMD, address, msg);
 
 def main():
