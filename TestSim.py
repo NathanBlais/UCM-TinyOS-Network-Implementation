@@ -222,13 +222,13 @@ def main():
 ###***Chat Client and Server Test*** ###
     s.cmdChatServerSet(1);
     s.runTime(1);
-    s.cmdChatClientCmd(1, "hello Josseline 2 \r\n");
+    s.cmdChatClientCmd(2, "hello Josseline 2\r\n");
+    s.runTime(200);
+    s.cmdChatClientCmd(2, "msg Hello Word!\r\n");
+    s.runTime(200);
+    #s.cmdChatClientCmd(1, "whisper Nathan Hola \r\n");
     s.runTime(1);
-    s.cmdChatClientCmd(1, "msg Hello Word! \r\n");
-    s.runTime(1);
-    s.cmdChatClientCmd(1, "whisper Nathan Hola \r\n");
-    s.runTime(1);
-    s.cmdChatClientCmd(1, "listusr \r\n" );
+    #s.cmdChatClientCmd(1, "listusr \r\n" );
     s.runTime(1);
 
 #####***NEIGHBOR DISCOVERY TEST***##### 

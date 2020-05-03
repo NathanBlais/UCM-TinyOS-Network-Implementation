@@ -462,8 +462,7 @@ module TransportP{
         case ESTABLISHED: // right here, writes to the send buffer
         case CLOSE_WAIT:
             //get size of buffer
-            //for(written=0; socketHolder->sendBuff[written] == '\0'; written++){} 
-
+            //for(written=0; socketHolder->sendBuff[written] == '\0'; written++){}
             dbg(TRANSPORT_CHANNEL, "\t\tbufflen = %d\n", bufflen);
             if (bufflen > SOCKET_BUFFER_SIZE){
                written = SOCKET_BUFFER_SIZE;

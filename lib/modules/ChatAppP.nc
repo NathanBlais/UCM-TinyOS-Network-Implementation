@@ -60,7 +60,7 @@ module ChatAppP{
 
 implementation{ 
     bool isServer = FALSE;
-    void Hello( uint8_t port, uint8_t *payload);
+    void Hello(char* name, uint8_t port, uint8_t *payload);
    
     
 
@@ -91,10 +91,11 @@ implementation{
     }
 
     command void ChatApp.ClientCommand(uint8_t *payload){
-
+            char  payload_copy[30];
             char * convertToString = (char *) payload;
+            uint8_t i;
             //char * token = strtok (convertToString,"\r\n");
-            char * commandType = strtok(convertToString, " ");
+            char * commandType;
             char * userName;
             char * clientPort;
             char * message;
@@ -105,7 +106,9 @@ implementation{
             char msg[] = "msg";
             char whisper[] = "whisper";
             char listusr [] = "listusr";
-
+             //dbg (APPLICATION_CHANNEL, "in Commnad thingy before parses payload stuff in chat: %s", payload);
+            strcpy(payload_copy,payload);
+            commandType = strtok(convertToString, " ");
             if (strcmp(commandType, hello) == 0)
             {
                 dbg(APPLICATION_CHANNEL,"hello command\n");
@@ -117,9 +120,11 @@ implementation{
                 covertBackFromStringUN = (uint8_t *) userName;
                 port = atoi(clientPort);
                 dbg (APPLICATION_CHANNEL,"userName : %s\n clientPort:%d \n", userName, port);
+                //dbg (APPLICATION_CHANNEL, "in Commnad thingy after parses payload stuff in chat: %s", payload_copy);
+                //dbg(APPLICATION_CHANNEL, "YOLO %d \n",payload_copy[18]);
                 //sends username, port, payload
                  //make it call the hello function
-                 Hello( port, payload);
+                 Hello(userName, port, payload_copy);
                 
             }
             else if (strcmp(commandType, msg) == 0)
@@ -129,6 +134,8 @@ implementation{
                 message = strtok (NULL,"\r\n");
                 covertBackFromStringM = (uint8_t*) message;
                 dbg (APPLICATION_CHANNEL, "message is:%s \n", covertBackFromStringM);
+                for(i=0; payload_copy[i] != '\0'; i++ ){}
+                call Transport.write((call UserList.front()).UsersPort,payload_copy,i);
 
                 //call msg/whisper function
             }
@@ -163,13 +170,15 @@ implementation{
 
     }
 
-    void Hello(uint8_t port, uint8_t *payload)
+    void Hello(char *name, uint8_t port, uint8_t *payload)
     {
+        chatUser mySelf;
         socket_addr_t destAddr;
         uint8_t i;//, AmountWritten;
         socket_t mySocket = call Transport.socket(port);
         destAddr.addr = 1; //filled with usless info
-        destAddr.port = 41;    //filled with usless info
+        destAddr.port = 1;    //filled with usless info
+        dbg (APPLICATION_CHANNEL, "payload stuff in chat: %s", payload);
         if(call Transport.bind(mySocket, &destAddr))
             return;
         for(i=0; payload[i] != '\0'; i++ ){} //look back at the i?
@@ -177,7 +186,12 @@ implementation{
         if(call Transport.connect(mySocket, &destAddr))
             return;
         
+
         call Transport.write(port,payload,i);
+
+        strcpy(mySelf.name, name);
+		mySelf.UsersPort = port;
+        call UserList.pushback(mySelf);
 
 
 
