@@ -217,7 +217,14 @@ def main():
     s.runTime(1);  #no noise 300, some noise 300
     s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
     s.runTime(100); #no noise 200, some noise 200
-
+    s.cmdChatClientCmd(1, "hello Josseline 42 \r\n");
+    s.runTime(1);
+    s.cmdChatClientCmd(1, "msg Hello Word! \r\n");
+    s.runTime(1);
+    s.cmdChatClientCmd(1, "whisper Nathan Hola \r\n");
+    s.runTime(1);
+    s.cmdChatClientCmd(1,"listusr \r\n" );
+    s.runTime(1);
 
 ###***Chat Client and Server Test*** ###
 
