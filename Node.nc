@@ -237,8 +237,7 @@ implementation{
 
    event void CommandHandler.setAppClient(){}
 
-   event void CommandHandler.appClientCommand(uint8_t *payload){call ChatApp.
-   }
+   event void CommandHandler.appClientCommand(uint8_t *payload){call ChatApp.ClientCommand(payload);}
 
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t* payload, uint8_t length){
       Package->src = src;
