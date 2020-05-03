@@ -21,7 +21,6 @@ class TestSim:
     CMD_SERVER_READ = 15
     CMD_CHAT_SERVER_SET = 16
     CMD_CHAT_CLIENT_CMD = 17
-
     CMD_ERROR = 10
 
     # CHANNELS - see includes/channels.h
