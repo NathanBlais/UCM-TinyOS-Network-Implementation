@@ -11,4 +11,6 @@ interface CommandHandler{
    event void cmdServerRead(uint8_t port, uint16_t  bufflen);
    event void setAppServer();
    event void setAppClient();
+   event void appClientCommand(uint8_t *payload);
+
 }

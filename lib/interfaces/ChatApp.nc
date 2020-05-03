@@ -1,6 +1,6 @@
 
 
 interface ChatApp{
-    // command void SetupClient();
-    // command void SetupServer();
+    command void SetupServer();
+    command void ClientCommand(uint8_t *payload);
 }

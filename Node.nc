@@ -27,6 +27,7 @@ module Node{
    uses interface NeighborDiscovery;
    uses interface DistanceVectorRouting;
    uses interface Transport;
+   uses interface ChatApp;
 
    uses interface Queue<reciveInfo*>;
    uses interface Pool<reciveInfo>;
@@ -102,7 +103,7 @@ implementation{
             return msg;
         }
         return msg;
-    }
+   }
 
    error_t receive(message_t* msg, pack* payload, uint8_t len){
       pack *contents;
@@ -147,7 +148,7 @@ implementation{
 
       //dbg(GENERAL_CHANNEL, "Package Payload: %s\n", myMsg->payload);
       return SUCCESS;
-      }
+   }
 
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
       error_t result;
@@ -227,14 +228,17 @@ implementation{
       for (i = 0; i < SOCKET_BUFFER_SIZE; i++) buff[i] = '\0';
 
 
-      call Transport.read((socket_t)port, buff, bufflen);
+      call Transport.read((socket_t)port, (uint8_t *) buff, bufflen);
       dbg(GENERAL_CHANNEL, "Message Read from Application layer:%s\n", buff);
    }
 
 
-   event void CommandHandler.setAppServer(){}
+   event void CommandHandler.setAppServer(){call ChatApp.SetupServer();}
 
    event void CommandHandler.setAppClient(){}
+
+   event void CommandHandler.appClientCommand(uint8_t *payload){call ChatApp.
+   }
 
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t seq, uint16_t protocol, uint8_t* payload, uint8_t length){
       Package->src = src;

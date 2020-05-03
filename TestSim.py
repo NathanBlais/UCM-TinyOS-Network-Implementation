@@ -18,11 +18,11 @@ class TestSim:
     CMD_TEST_SERVER = 5
     CMD_KILL = 6
     CMD_CLIENT_CLOSE = 7
-    CMD_APP_SERVER = 8
-    CMD_APP_CLIENT = 9
     CMD_SERVER_READ = 15
+    CMD_CHAT_SERVER_SET = 16
+	CMD_CHAT_CLIENT_CMD = 17
+
     CMD_ERROR = 10
-    CMD_APP_SEND = 11
 
     # CHANNELS - see includes/channels.h
     COMMAND_CHANNEL="command";
@@ -152,7 +152,7 @@ class TestSim:
         self.sendCMD(self.CMD_TEST_CLIENT, address, "{0}{1}{2}{3}".format(chr(sourcePort), chr(dest), chr(destPort), msg));
                             #[selfAdress] [srcPort] [dest] [destPort] [transfer]
 
-    def cmdClientClose(self, address, sourcePort, dest, destPort,):
+    def cmdClientClose(self, address, sourcePort, dest, destPort):
         print 'Client:',address,'Port:',sourcePort,'wants to close Server/Port:' , dest, destPort;
         self.sendCMD(self.CMD_CLIENT_CLOSE, address, "{0}{1}{2}{3}".format(chr(address), chr(sourcePort), chr(dest), chr(destPort)));
                             #[client adress] [srcPort] [dest] [destPort]
@@ -161,7 +161,11 @@ class TestSim:
         print 'Server Calling Read for', address, port;
         self.sendCMD(self.CMD_SERVER_READ, address, "{0}{1}".format(chr(port), chr(bufflen)));
 
-   # def cmdServerChat(self, address, port, bufflen)
+    def cmdChatServerSet(self, address)
+        self.sendCMD(self.CMD_CHAT_SERVER_SET, address);
+
+    def cmdChatClientCmd(self, address, msg)
+        self.sendCMD(self.CMD_CHAT_CLIENT_CMD, address, msg);
 
 def main():
     s = TestSim();

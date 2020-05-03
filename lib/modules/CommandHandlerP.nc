@@ -92,6 +92,16 @@ implementation{
                 dbg(COMMAND_CHANNEL, "Command Type: Kill (Not Implemented)\n");
                 break;
 
+            case CMD_CHAT_SERVER_SET:
+                dbg(COMMAND_CHANNEL, "Command Type: Chat Server Open\n");
+                signal CommandHandler.setAppServer();
+                break;
+	        
+            case CMD_CHAT_CLIENT_CMD:
+                dbg(COMMAND_CHANNEL, "Command Type: Chat Client Command\n");
+                signal CommandHandler.appClientCommand(&buff[0]);
+                break;
+
             default:
                 dbg(COMMAND_CHANNEL, "CMD_ERROR: \"%d\" does not match any known commands.\n", msg->id);
                 break;

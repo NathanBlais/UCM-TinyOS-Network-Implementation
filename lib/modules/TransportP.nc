@@ -204,11 +204,11 @@ module TransportP{
         //normal sender
       
         uint16_t i;
-        uint8_t j; 
+        //uint8_t j; 
         sendTCPInfo* TCPinfo; // has socket_t, flag, payload, length
         socket_store_t * mySocket;
-        socket_store_t * resendSocket;
-        socket_store_t * sendSocket;
+        //socket_store_t * resendSocket;
+        //socket_store_t * sendSocket;
         uint8_t size = call Connections.size();
         uint32_t * keys = call Connections.getKeys();
 
@@ -806,6 +806,8 @@ module TransportP{
         uint8_t *buff = tcpSegment->payload;
         uint8_t size = bufflen + (sizeof(socketHolder->rcvdBuff)/sizeof(socketHolder->rcvdBuff[0]));
         uint8_t holder[bufflen];
+        //char holder[bufflen];
+
         //holder[0] = '\0';
         holder [bufflen] = '\0';
         holder[bufflen+1] = '\0'; 

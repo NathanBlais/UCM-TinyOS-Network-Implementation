@@ -43,6 +43,9 @@ implementation {
     components TransportC as Transport;
     Node.Transport -> Transport;  
 
+    components ChatAppC as ChatApp;
+    Node.ChatApp -> ChatApp;
+
     	   //Lists
     components new PoolC(reciveInfo, 20);
     components new QueueC(reciveInfo*, 20);

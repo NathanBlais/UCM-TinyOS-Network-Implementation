@@ -29,7 +29,7 @@ module ChatAppP{
 //   uses interface Pool<sendTCPInfo> as SendPool;
 
 
- }
+}
 
   /* --------- Questions Area --------- *\
 ✱This is where we put our general questions
@@ -53,4 +53,14 @@ module ChatAppP{
  //need a send_out
 
 
-  implementation{  
+implementation{  
+
+    command void ChatApp.SetupServer(){
+
+    }
+
+    command void ChatApp.ClientCommand(uint8_t *payload){
+
+    }
+
+}
