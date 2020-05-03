@@ -59,15 +59,21 @@ module ChatAppP{
 
 
 implementation{  
+    bool isServer = FALSE;
 
     command void ChatApp.SetupServer(){
         socket_addr_t myAddr; //not realy needed exept to satisfy bind requirements
         socket_t mySocket = call Transport.socket(1); //change to 41
 
         if (mySocket != 1){
-            dbg(TRANSPORT_CHANNEL, "Could not retrive an available socket\n");
+            dbg(TRANSPORT_CHANNEL, "Socket 1 not available\n");
             //return;
-            }
+        }
+
+        // if (mySocket != 41){
+        //     dbg(TRANSPORT_CHANNEL, "Socket 41 not available\n");
+        //     //return;
+        //     }
 
         myAddr.addr = TOS_NODE_ID; //filled with usless info
         myAddr.port = mySocket;    //filled with usless info
@@ -78,6 +84,7 @@ implementation{
         if(call Transport.listen(mySocket))
             return;
 
+        isServer = TRUE;
     }
 
     command void ChatApp.ClientCommand(uint8_t *payload){
@@ -91,7 +98,7 @@ implementation{
             uint8_t port;
             uint8_t * covertBackFromStringM;
             uint8_t *covertBackFromStringUN;
-            char hello[] = "hello" ;
+            char hello[] = "hello";
             char msg[] = "msg";
             char whisper[] = "whisper";
             char listusr [] = "listusr";
