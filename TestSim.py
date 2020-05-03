@@ -161,7 +161,7 @@ class TestSim:
         self.sendCMD(self.CMD_SERVER_READ, address, "{0}{1}".format(chr(port), chr(bufflen)));
 
     def cmdChatServerSet(self, address):
-        self.sendCMD(self.CMD_CHAT_SERVER_SET, address);
+        self.sendCMD(self.CMD_CHAT_SERVER_SET, address, "chat command");
 
     def cmdChatClientCmd(self, address, msg):
         self.sendCMD(self.CMD_CHAT_CLIENT_CMD, address, msg);
@@ -202,35 +202,34 @@ def main():
     #s.runTime(10);
     #s.ping(2, 6, "Hi!");
     #s.runTime(100);
-    #####***TCP Test***##### 
+
+#####***TCP Test***##### 
     #s.ping(1, 6, "I'll have you know I gr");
-    s.cmdTestServer(6,10); #[adress] [port]
+    #s.cmdTestServer(6,10); #[adress] [port]
     s.runTime(40); #no noise 100, some noise 100
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
-    s.cmdTestClient(1,8,6,10, "Hello,_bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    s.runTime(200);  #no noise 350, some noise 350
-    s.cmdServerRead(6,10,26); #[dest][destPort][length]
-    s.runTime(1);  #no noise 300, some noise 300
-    s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
-    s.runTime(100); #no noise 200, some noise 200
+    # s.cmdTestClient(1,8,6,10, "Hello,_bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
+    # s.runTime(200);  #no noise 350, some noise 350
+    # s.cmdServerRead(6,10,26); #[dest][destPort][length]
+    # s.runTime(1);  #no noise 300, some noise 300
+    # s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
+    # s.runTime(100); #no noise 200, some noise 200
+
+###***Chat Client and Server Test*** ###
+    s.cmdChatServerSet(1);
+    s.runTime(1);
     s.cmdChatClientCmd(1, "hello Josseline 2 \r\n");
     s.runTime(1);
     s.cmdChatClientCmd(1, "msg Hello Word! \r\n");
     s.runTime(1);
     s.cmdChatClientCmd(1, "whisper Nathan Hola \r\n");
     s.runTime(1);
-    s.cmdChatClientCmd(1,"listusr \r\n" );
+    s.cmdChatClientCmd(1, "listusr \r\n" );
     s.runTime(1);
-
-###***Chat Client and Server Test*** ###
-
-
-
-
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);
