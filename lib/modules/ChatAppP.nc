@@ -17,7 +17,7 @@ module ChatAppP{
 
   uses interface Transport;
 
-  uses interface List<chatUser> as UserList;
+  uses interface List<chatUser> as UserList; //for the server
 
 
  // uses interface Hashmap<socket_store_t> as Connections; // hash table: list of connections
@@ -58,8 +58,9 @@ module ChatAppP{
  //need a send_out
 
 
-implementation{  
-
+implementation{ 
+    void Hello( uint8_t port, uint8_t *payload);
+   
     command void ChatApp.SetupServer(){
         socket_addr_t myAddr; //not realy needed exept to satisfy bind requirements
         socket_t mySocket = call Transport.socket(1); //change to 41
@@ -107,8 +108,9 @@ implementation{
                 covertBackFromStringUN = (uint8_t *) userName;
                 port = atoi(clientPort);
                 dbg (APPLICATION_CHANNEL,"userName : %s\n clientPort:%d \n", userName, port);
-
+                //sends username, port, payload
                  //make it call the hello function
+                 Hello( port, payload);
                 
             }
             else if (strcmp(commandType, msg) == 0)
@@ -151,5 +153,28 @@ implementation{
 
 
     }
+
+    void Hello(uint8_t port, uint8_t *payload)
+    {
+        socket_addr_t destAddr;
+        uint8_t i;//, AmountWritten;
+        socket_t mySocket = call Transport.socket(port);
+        destAddr.addr = 1; //filled with usless info
+        destAddr.port = 41;    //filled with usless info
+        if(call Transport.bind(mySocket, &destAddr))
+            return;
+        for(i=0; payload[i] != '\0'; i++ ){} //look back at the i?
+            //call Transport.write(srcPort,payload,i);
+        if(call Transport.connect(mySocket, &destAddr))
+            return;
+        
+        call Transport.write(port,payload,i);
+
+
+
+    }
+    
+
+
 
 }
