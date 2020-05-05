@@ -225,11 +225,71 @@ implementation{
    event void CommandHandler.cmdServerRead(uint8_t port, uint16_t  bufflen){
       char buff[SOCKET_BUFFER_SIZE];
       uint8_t i;
+      char hello[] = "hello";
+      char msg[] = "msg";
+      char whisper[] = "whisper";
+      char listusr [] = "listusr";
+      char commandType[SOCKET_BUFFER_SIZE];
+      char message[SOCKET_BUFFER_SIZE];
+      char copy[SOCKET_BUFFER_SIZE];
+
+
       for (i = 0; i < SOCKET_BUFFER_SIZE; i++) buff[i] = '\0';
 
 
       call Transport.read((socket_t)port, (uint8_t *) buff, bufflen);
       dbg(GENERAL_CHANNEL, "Message Read from Application layer:%s\n", buff);
+
+      //memcpy(copy,buff, 5);
+
+      //commandType = strtok (buff,"\r\n");
+
+      /*
+        if (strcmp(commandType, hello) == 0)
+            {
+                dbg(APPLICATION_CHANNEL,"hello command, set up already\n");
+                //hello [username] [clientport]\r\n
+                //make it call the hello 
+                
+                
+            }
+            else if (strcmp(commandType, msg) == 0)
+            {
+                dbg(APPLICATION_CHANNEL,"msg command, broadcast it\n");
+               message = strtok(NULL, " ");
+               makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL, SEQ_NUM, PROTOCOL_PING, message, PACKET_MAX_PAYLOAD_SIZE);
+               
+
+                //call msg/whisper function
+            }
+            else if (strcmp(commandType, whisper) == 0)
+            {
+                dbg(APPLICATION_CHANNEL,"whisper command, single person\n");
+                //whisper [username] [message]\r\n
+                
+
+            }
+           
+            else 
+            {
+                commandType = strtok(commandType, "\r\n");
+
+                if (strcmp(commandType, listusr) == 0)
+                    {
+                    dbg(APPLICATION_CHANNEL,"listusr command\n");
+                        //call listusr function
+                    }
+               
+                else
+                {
+                dbg(APPLICATION_CHANNEL,"unrecognized command %s\n", commandType);
+                }
+            }
+
+*/
+
+      
+
    }
 
 

@@ -80,16 +80,14 @@ module TransportP{
     uint16_t readDataToBuff(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
     uint8_t updateRecieverSlideWindow (socket_t fd, tcpHeader *tcpSegment);
     error_t updateSenderSlideWindow (socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen);
-    error_t CopySocket(socket_t fdScorce, socket_t fdDest);
-
     
     void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length);
-    
+     error_t CopySocket(socket_t fdScorce, socket_t fdDest);
     void send_out(){
         tcpHeader sendPackageTCP;
         pack sendIPpackage;
         uint8_t AW;
-        //tcpHeader* tempTCP;
+        tcpHeader* tempTCP;
         sendTCPInfo *info = call SendQueue.head();
 
         socket_t socKey = info->socKey;
@@ -145,8 +143,8 @@ module TransportP{
         dbg(TRANSPORT_CHANNEL,"sendPackageTCP.Len %d\n", sendPackageTCP.Len);
        // dbg(TRANSPORT_CHANNEL,"(sendIPpackage.package).Len %d\n", (sendIPpackage.payload).Len);
          
-        // tempTCP = &(sendIPpackage.payload);
-        // dbg(TRANSPORT_CHANNEL,"\tpayload of send line 143: %s\n", tempTCP->payload);
+        tempTCP = &(sendIPpackage.payload);
+        dbg(TRANSPORT_CHANNEL,"\tpayload of send line 143: %s\n", tempTCP->payload);
 
         call Sender.send(sendIPpackage, call DistanceVectorRouting.GetNextHop(socketHolder->dest.addr));
 
@@ -206,11 +204,11 @@ module TransportP{
         //normal sender
       
         uint16_t i;
-        //uint8_t j; 
-        //sendTCPInfo* TCPinfo; // has socket_t, flag, payload, length
+        uint8_t j; 
+        sendTCPInfo* TCPinfo; // has socket_t, flag, payload, length
         socket_store_t * mySocket;
-        //socket_store_t * resendSocket;
-        //socket_store_t * sendSocket;
+        socket_store_t * resendSocket;
+        socket_store_t * sendSocket;
         uint8_t size = call Connections.size();
         uint32_t * keys = call Connections.getKeys();
 
@@ -253,7 +251,7 @@ module TransportP{
 			        dataBuffer[i] = '\0';
                 switch(mySocket->state){
                     case ESTABLISHED: case CLOSE_WAIT:
-                        dbg(TRANSPORT_CHANNEL,"mySocket->lastWritten %d | mySocket->lastSent %d\n", mySocket->lastWritten, mySocket->lastSent);
+                        //dbg(TRANSPORT_CHANNEL,"mySocket->lastWritten %d | mySocket->lastSent %d\n", mySocket->lastWritten, mySocket->lastSent);
 
 
                         //figure out amount of data to send
@@ -264,7 +262,7 @@ module TransportP{
                         for(buffSize=0; mySocket->sendBuff[buffSize] != '\0'; buffSize++){} 
                         //dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
                         buffSize = buffSize - mySocket->lastAck +1;
-                        dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
+                        //dbg(TRANSPORT_CHANNEL, "buffSize %d\n", buffSize);
 
                         if(mySocket->effectiveWindow >= buffSize){
                             //keep buffSize the same
@@ -428,6 +426,25 @@ module TransportP{
 
     command socket_t Transport.accept(socket_t fd, pack* myPacket){
         socket_store_t * socketHolder;
+        tcpHeader * myTcpHeader = (tcpHeader*) myPacket->payload;
+
+        if (!(call Connections.contains(fd))) return 0; //Checks if the socket exists
+
+        socketHolder = call Connections.getPointer(fd);
+        switch (socketHolder->state) { 
+            case LISTEN:
+                socketHolder->dest.port= myTcpHeader->Src_Port;
+                socketHolder->dest.addr= myPacket->src;
+                break;
+            default:
+                break;
+        }
+        return fd;
+
+
+/*
+
+socket_store_t * socketHolder;
         socket_store_t * newSocketHolder;
         socket_addr_t myAddr; //not realy needed exept to satisfy bind requirements
         socket_t mySocket = 0;
@@ -474,6 +491,13 @@ module TransportP{
                 break;
         }
         return fd;
+
+*/
+
+
+
+
+
     }
 
     command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen){ //NOTE: FIGURE out how to deal with writing if the buffer is not full but past its max seq #
@@ -507,7 +531,7 @@ module TransportP{
                written = SOCKET_BUFFER_SIZE;
             }
             else{
-                written = bufflen;
+                written = bufflen+1;
             }
 
             socketHolder->lastWritten = written + socketHolder->lastWritten;
@@ -583,7 +607,14 @@ module TransportP{
             if(mySegment->Flags == RESET){/*ignore*/}
             else if(mySegment->Flags == ACK){/* Can't have ACK send Pack:<SEQ=SEG.ACK><CTL=RST>*/}
             else if(mySegment->Flags == SYN){
+                uint8_t ISN = 100;
                 call Transport.accept(curConection->src, myMsg);
+                seq = mySegment->Seq_Num;
+                send_buff(curConection->src, SYN+ACK, ISN, seq + 1, Empty, 0);
+                curConection->nextExpected = ISN + 1; //Replace this
+                curConection->state = SYN_RCVD;
+                dbg(TRANSPORT_CHANNEL, "STATE: LISTEN -> SYN_RCVD\n");
+
                 return SUCCESS;
             }
             else{ //Wrong info
@@ -602,8 +633,6 @@ module TransportP{
                     //seq = mySegment->Acknowledgment;
 
                     //send_buff(curConection->src, ACK, seq, mySegment->Seq_Num + 1, Empty, 0);
-                    (curConection->dest).port = mySegment->Src_Port;
-                    (curConection->dest).addr = myMsg->src;
                     curConection->lastAck = mySegment->Acknowledgment - 1;
                     // curConection->nextExpected = seq + 1;
                     curConection->state = ESTABLISHED;
@@ -615,14 +644,20 @@ module TransportP{
             else return SUCCESS;
             break; 
 
-            default:
-            break;
+            ///new bits
         }
 
-        if(mySegment->Acknowledgment <= curConection->lastSent /*&& mySegment->Len == 0*/){
-            dbg(TRANSPORT_CHANNEL, "mySegment->Acknowledgment %d <= curConection->lastSent %d\n", mySegment->Acknowledgment, curConection->lastSent);
+        if(mySegment->Acknowledgment <= curConection->lastSent && mySegment->Len == 0){
+            dbg(TRANSPORT_CHANNEL, "mySegment->Acknowledgment %d <= curConection->lastSent %d this comment\n", mySegment->Acknowledgment, curConection->lastSent);
+                        readDataToBuff(curConection->src, mySegment, mySegment->Len); //returns amount put into buffer
+
+                        dbg(TRANSPORT_CHANNEL, "testing\n");
+                        seq = curConection->lastAck + 1;
+                        send_buff(curConection->src, ACK, curConection->lastAck + 1, curConection->lastRcvd + 1, Empty, 0); //update this
+                        curConection->nextExpected = seq + 1;
+            
             //resend the stuff
-            return SUCCESS;
+           // return SUCCESS;
         }
 
         //check sequence number HERE
@@ -819,7 +854,6 @@ module TransportP{
     }
 
     command error_t Transport.receiveBuffer(pack* package){   
-        //dbg(TRANSPORT_CHANNEL, "In receiver buffer \n");
         if(!call Pool.empty()){
             pack *input;
             //tcpHeader *TCPholder = package;
@@ -843,43 +877,49 @@ module TransportP{
     } 
 
     uint16_t readDataToBuff(socket_t fd, tcpHeader *tcpSegment, uint16_t bufflen){
-        uint8_t buffSize, i;
+        uint8_t buffSize;
         socket_store_t * socketHolder =  call Connections.getPointer(fd);
         uint8_t *buff = tcpSegment->payload;
+        uint8_t size = bufflen + (sizeof(socketHolder->rcvdBuff)/sizeof(socketHolder->rcvdBuff[0]));
         uint8_t holder[bufflen];
+        //holder[0] = '\0';
+        holder [bufflen] = '\0';
+        holder[bufflen+1] = '\0'; 
+        //int len;
 
-        for (i = 0; i <= bufflen; i++) {
-            holder[bufflen + i] =  '\0'; 
-		}
-        dbg(TRANSPORT_CHANNEL, "\t\tTransport Called readDataToBuff\n");
+      //  dbg(TRANSPORT_CHANNEL, "Transport Called readDataToBuff\n");
 
-        //for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
-        if (bufflen > SOCKET_BUFFER_SIZE - socketHolder->lastRcvd){
-            buffSize = SOCKET_BUFFER_SIZE - socketHolder->lastRcvd;
+        /*for(buffSize=0; socketHolder->rcvdBuff[buffSize] != '\0'; buffSize++ ){} //calculates the size of the buffer
+        if (bufflen > buffSize){
+            // will write the max ammount
         }
         else{
             buffSize = bufflen;
         }
+        */
         
-        memcpy(holder, buff, buffSize);
-        dbg(TRANSPORT_CHANNEL, "holder after memcpy (holder, buff, bufflen); has:%s the value of bufflen is %d \n", holder, bufflen);
+     memcpy (holder, buff, bufflen);
 
-        strcat((char*)socketHolder->rcvdBuff, (char*)holder);
+       dbg(TRANSPORT_CHANNEL, "holder after memcpy (holder, buff, bufflen); has:%s the value of bufflen is %d \n", holder, bufflen);
+       // strcat(holder, socketHolder->rcvdBuff);
+
+        strcat(socketHolder->rcvdBuff, holder);
+
         
-        dbg(TRANSPORT_CHANNEL, "line 829 socketHolder->rcvdBuff:%s\n", socketHolder->rcvdBuff );
+       // memcpy(socketHolder->rcvdBuff, holder, size);
+        dbg(TRANSPORT_CHANNEL, "line 834 socketHolder->rcvdBuff:%s\n", socketHolder->rcvdBuff );
         return buffSize;
     }
         
     command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen){
         uint8_t buffSize, has_read;
         socket_store_t * socketHolder;
-        uint8_t *socketBuff;
-
+        
+        uint8_t *socketBuff = socketHolder->rcvdBuff; //recheck with nathan
         dbg(TRANSPORT_CHANNEL, "Transport Called Read\n");
 
         if (!(call Connections.contains(fd))) return 0;
         socketHolder = call Connections.getPointer(fd);
-        socketBuff = socketHolder->rcvdBuff;
 
         if (socketBuff == NULL || bufflen < 1) return 0;
 
@@ -1060,6 +1100,7 @@ module TransportP{
 	    //lastSent is already updated here. but what about the other variables?
 	    //??????????
 	    socket_store_t * socketHolder ;
+	    uint8_t *buff = tcpSegment->payload;
 
         if (!(call Connections.contains(fd))) return FAIL;
         socketHolder = call Connections.getPointer(fd);
@@ -1120,6 +1161,17 @@ module TransportP{
     	return 0;
     }   
 
+
+
+    void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length){
+        Package->src = (uint16_t)TOS_NODE_ID;
+        Package->dest = sock->dest.addr;
+        Package->TTL = MAX_TTL;
+        Package->seq = ipSeq; //finish this
+        Package->protocol = PROTOCOL_TCP;
+        memcpy(Package->payload, myTCPpack, length);
+    }
+
     error_t CopySocket(socket_t fdScorce, socket_t fdDest){
         uint8_t i;
 
@@ -1149,15 +1201,6 @@ module TransportP{
 			Dest->rcvdBuff[i] = Scorce->rcvdBuff[i];
 		}
         return SUCCESS;
-    }
-
-    void makeIPpack(pack *Package, tcpHeader *myTCPpack, socket_store_t *sock, uint8_t length){
-        Package->src = (uint16_t)TOS_NODE_ID;
-        Package->dest = sock->dest.addr;
-        Package->TTL = MAX_TTL;
-        Package->seq = ipSeq; //finish this
-        Package->protocol = PROTOCOL_TCP;
-        memcpy(Package->payload, myTCPpack, length);
     }
 
 }
