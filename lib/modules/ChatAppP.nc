@@ -92,6 +92,8 @@ implementation{
 
     command void ChatApp.ClientCommand(uint8_t *payload){
             char  payload_copy[30];
+            char * payload_char = (char*) payload;
+            uint8_t *payload_copy_uint8_t;
             char * convertToString = (char *) payload;
             uint8_t i;
             //char * token = strtok (convertToString,"\r\n");
@@ -107,7 +109,8 @@ implementation{
             char whisper[] = "whisper";
             char listusr [] = "listusr";
              //dbg (APPLICATION_CHANNEL, "in Commnad thingy before parses payload stuff in chat: %s", payload);
-            strcpy(payload_copy,payload);
+            strcpy(payload_copy,payload_char);
+            payload_copy_uint8_t = (uint8_t*)payload_copy;
             commandType = strtok(convertToString, " ");
             if (strcmp(commandType, hello) == 0)
             {
@@ -124,7 +127,7 @@ implementation{
                 //dbg(APPLICATION_CHANNEL, "YOLO %d \n",payload_copy[18]);
                 //sends username, port, payload
                  //make it call the hello function
-                 Hello(userName, port, payload_copy);
+                Hello(userName, port, payload_copy_uint8_t);
                 
             }
             else if (strcmp(commandType, msg) == 0)
@@ -135,7 +138,12 @@ implementation{
                 covertBackFromStringM = (uint8_t*) message;
                 dbg (APPLICATION_CHANNEL, "message is:%s \n", covertBackFromStringM);
                 for(i=0; payload_copy[i] != '\0'; i++ ){}
-                call Transport.write((call UserList.front()).UsersPort,payload_copy,i);
+              //  strcpy (bleh, (call UserList.front())->name);
+                dbg(APPLICATION_CHANNEL, "This is user port %d, and i is %d \n", (call UserList.front()).UsersPort, i) ;
+                
+                //strcat(allCommands, payload_copy);
+
+                call Transport.write((call UserList.front()).UsersPort,payload_copy_uint8_t,i);
 
                 //call msg/whisper function
             }
@@ -150,6 +158,10 @@ implementation{
                 //call whisper/msg function
                 dbg (APPLICATION_CHANNEL, "username is:%s \n", covertBackFromStringUN);
                 dbg (APPLICATION_CHANNEL, "message is:%s \n", covertBackFromStringM);
+                for(i=0; payload_copy[i] != '\0'; i++ ){}
+                //strcat(allCommands, payload_copy);
+                call Transport.write((call UserList.front()).UsersPort,payload_copy_uint8_t,i);
+
             }
            
             else 
@@ -160,7 +172,11 @@ implementation{
                     {
                     dbg(APPLICATION_CHANNEL,"listusr command\n");
                         //call listusr function
+                         for(i=0; payload_copy[i] != '\0'; i++ ){}
+                        call Transport.write((call UserList.front()).UsersPort,payload_copy_uint8_t,i);
                     }
+
+               
                 else
                 {
                 dbg(APPLICATION_CHANNEL,"unrecognized command %s\n", commandType);
@@ -188,6 +204,7 @@ implementation{
         
 
         call Transport.write(port,payload,i);
+        //strcat(allCommands, payload);
 
         strcpy(mySelf.name, name);
 		mySelf.UsersPort = port;

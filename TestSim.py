@@ -205,31 +205,33 @@ def main():
 
 #####***TCP Test***##### 
     #s.ping(1, 6, "I'll have you know I gr");
-    #s.cmdTestServer(6,10); #[adress] [port]
+    s.cmdTestServer(6,10); #[adress] [port]
     s.runTime(40); #no noise 100, some noise 100
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
     # s.runTime(10);
     # s.ping(1, 6, "I'll have you know I gr");
-    # s.cmdTestClient(1,8,6,10, "Hello,_bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
-    # s.runTime(200);  #no noise 350, some noise 350
-    # s.cmdServerRead(6,10,26); #[dest][destPort][length]
-    # s.runTime(1);  #no noise 300, some noise 300
-    # s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
-    # s.runTime(100); #no noise 200, some noise 200
+    s.cmdTestClient(1,8,6,10, "Hello,_bozo!"); #[selfAdress] [srcPort] [dest] [destPort] [transfer]
+    s.runTime(350);  #no noise 350, some noise 350
+    s.cmdServerRead(6,10,26); #[dest][destPort][length]
+    s.runTime(1);  #no noise 300, some noise 300
+    s.cmdClientClose(1,8,6,10); #[client adress] [srcPort] [dest] [destPort]
+    s.runTime(100); #no noise 200, some noise 200
 
 ###***Chat Client and Server Test*** ###
-    s.cmdChatServerSet(1);
-    s.runTime(1);
-    s.cmdChatClientCmd(2, "hello Josseline 2\r\n");
-    s.runTime(200);
-    s.cmdChatClientCmd(2, "msg Hello Word!\r\n");
-    s.runTime(200);
-    #s.cmdChatClientCmd(1, "whisper Nathan Hola \r\n");
-    s.runTime(1);
-    #s.cmdChatClientCmd(1, "listusr \r\n" );
-    s.runTime(1);
+   # s.cmdChatServerSet(1);
+   # s.runTime(1);
+   # s.cmdChatClientCmd(2, "hello Josseline 2\r\n");
+    #s.runTime(100);
+   # s.cmdChatClientCmd(2, "msg Hello Word!\r\n");
+    #s.runTime(100);
+    #s.cmdChatClientCmd(3, "hello John 3\r\n");
+    #s.runTime(100);
+    #s.cmdChatClientCmd(2, "whisper Nathan Hola \r\n");
+   # s.runTime(100);
+    #s.cmdChatClientCmd(2, "listusr \r\n" );
+    s.runTime(10);
 
 #####***NEIGHBOR DISCOVERY TEST***##### 
     # s.runTime(50);
